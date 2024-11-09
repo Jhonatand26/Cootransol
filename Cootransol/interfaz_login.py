@@ -107,6 +107,7 @@ class AdminWindow:
         self.btn_editar_conductor.grid(row=4, column=0, columnspan=3, pady=10)
 
         self.cargar_conductores()
+   
     def setup_vehiculo_tab(self):
         # Campo de búsqueda por placa
         label_busqueda = tk.Label(self.tab_vehiculo, text="Buscar por Placa:")
@@ -166,10 +167,11 @@ class AdminWindow:
 
         #Cargar info de los vehículos ya existentes
         self.cargar_vehiculos() 
+   
     def setup_pago_tab(self):
 
         # Crear una tabla para mostrar los movimientos registrados
-        self.tree_pagos = ttk.Treeview(self.tab_pagos, columns=("idMovimiento", "fecha", "vueltas", "montoPago", "rutaAsignada", "placaVehiculo", "horaInicio", "horaFin", "pagado"), show='headings')
+        self.tree_pagos = ttk.Treeview(self.tab_pagos, columns=("idMovimiento", "fecha", "vueltas", "montoPago", "rutaAsignada", "placaVehiculo", "horaInicio", "horaFin","pagoConfirmadoDesp", "pagado"), show='headings')
         
         # Definir los encabezados de las columnas
         self.tree_pagos.heading("idMovimiento", text="ID Movimiento")
@@ -180,6 +182,7 @@ class AdminWindow:
         self.tree_pagos.heading("placaVehiculo", text="Placa Vehículo")
         self.tree_pagos.heading("horaInicio", text="Hora Inicio")
         self.tree_pagos.heading("horaFin", text="Hora Fin")
+        self.tree_pagos.heading("pagoConfirmadoDesp", text="PCD")
         self.tree_pagos.heading("pagado", text="Pagado")
 
         # Definir el ancho de las columnas
@@ -205,7 +208,7 @@ class AdminWindow:
         # Conectar a la base de datos y cargar todos los movimientos
         conexion = sqlite3.connect("cootransol.db")
         cursor = conexion.cursor()
-        cursor.execute("SELECT idMovimiento, fecha, vueltas, montoPago, rutaAsignada, placaVehiculo, horaInicio, horaFin, pago FROM Movimientos")
+        cursor.execute("SELECT idMovimiento, fecha, vueltas, montoPago, rutaAsignada, placaVehiculo, horaInicio, horaFin, pagoConfirmadoDesp, pagado FROM Movimientos")
         movimientos = cursor.fetchall()
         conexion.close()
 
@@ -232,6 +235,7 @@ class AdminWindow:
         # Actualizar la tabla de movimientos
         self.cargar_movimientos()
         messagebox.showinfo("Éxito", "Pago marcado como realizado.")
+   
     def eliminar_conductor(self):
         # Obtener el conductor seleccionado
         selected_item = self.tree_conductores.selection()
@@ -426,7 +430,6 @@ class AdminWindow:
                 # Botón para guardar cambios
         btn_guardar = tk.Button(editar_window, text="Guardar Cambios", command=guardar_cambios)
         btn_guardar.grid(row=10, column=0, columnspan=2, pady=10)  # Cambié la fila a 10 para evitar conflictos con otros widgets
-
 
     def filtrar_conductor(self):
         # Lógica para filtrar los conductores en la base de datos y mostrar resultados en la tabla
@@ -734,7 +737,6 @@ class AdminWindow:
             print("Error en consulta SQL:", e)
             return []
 
-        
     def verificar_conductor_disponible(self, id_conductor):
         """Verifica si el conductor está disponible (sin vehículo asignado)."""
         conexion = sqlite3.connect("cootransol.db")
@@ -763,6 +765,9 @@ class DespachadorWindow:
         self.tab_vehiculo = ttk.Frame(self.tab_control)
         self.tab_control.add(self.tab_vehiculo, text="Datos del Vehículo")
 
+        # Pestaña de Gestión de Pagos
+        self.tab_pagos = ttk.Frame(self.tab_control)
+        self.tab_control.add(self.tab_pagos, text="Gestión de Pagos")
 
         # Empaquetar las pestañas
         self.tab_control.pack(expand=1, fill="both")
@@ -770,6 +775,7 @@ class DespachadorWindow:
         # Configuración de cada pestaña
         self.setup_conductor_tab()
         self.setup_vehiculo_tab()
+        self.setup_pago_tab()
 
         self.despachador_root.mainloop()
 
@@ -951,6 +957,166 @@ class DespachadorWindow:
                 self.tree_vehiculos.insert("", "end", values=vehiculo)
         else:
             messagebox.showinfo("Sin resultados", "No se encontró un vehículo con esa placa.")
+
+    def setup_pago_tab(self):
+
+        # Crear una tabla para mostrar los movimientos registrados
+        self.tree_pagos = ttk.Treeview(
+        self.tab_pagos, 
+        columns=("idMovimiento", "fecha", "vueltas", "montoPago", "rutaAsignada", 
+                "placaVehiculo", "horaInicio", "horaFin", "pagoConfirmadoDesp", "pagado"), 
+        show='headings'
+    )
+      
+        # Definir los encabezados de las columnas
+        self.tree_pagos.heading("idMovimiento", text="ID Movimiento")
+        self.tree_pagos.heading("fecha", text="Fecha")
+        self.tree_pagos.heading("vueltas", text="Vueltas")
+        self.tree_pagos.heading("montoPago", text="Monto Pago")
+        self.tree_pagos.heading("rutaAsignada", text="Ruta Asignada")
+        self.tree_pagos.heading("placaVehiculo", text="Placa Vehículo")
+        self.tree_pagos.heading("horaInicio", text="Hora Inicio")
+        self.tree_pagos.heading("horaFin", text="Hora Fin")
+        self.tree_pagos.heading("pagoConfirmadoDesp", text="PCD")
+        self.tree_pagos.heading("pagado", text="Pagado")
+
+        # Definir el ancho de las columnas
+        for col in ("idMovimiento", "fecha", "vueltas", "montoPago", "rutaAsignada", 
+            "placaVehiculo", "horaInicio", "horaFin", "pagoConfirmadoDesp", "pagado"):
+            self.tree_pagos.column(col, width=100)
+
+
+        # Ubicar la tabla en la pestaña de pagos
+        self.tree_pagos.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Botón para marcar pago por despachador como realizado 
+        btn_pagar = tk.Button(self.tab_pagos, text="Marcar Pago Realizado (Despachador)", command=self.confirmar_pago_despachador)
+        btn_pagar.pack(side="left", padx=5)
+
+        # Botón para agregar un nuevo movimiento
+        btn_agregar_movimiento = tk.Button(self.tab_pagos, text="Agregar Movimiento", command=self.agregar_movimiento)
+        btn_agregar_movimiento.pack(side="left", padx=5)
+
+        # Cargar movimientos registrados al iniciar la pestaña de pagos
+        self.cargar_movimientos()
+    
+    def confirmar_pago_despachador(self):
+        selected_item = self.tree_pagos.selection()
+        if not selected_item:
+            messagebox.showwarning("Advertencia", "Por favor, seleccione un movimiento para confirmar el pago.")
+            return
+
+        id_movimiento = self.tree_pagos.item(selected_item, "values")[0]
+
+        # Conectar a la base de datos y actualizar el estado de confirmación del pago
+        conexion = sqlite3.connect("cootransol.db")
+        cursor = conexion.cursor()
+        cursor.execute("UPDATE Movimientos SET pagoConfirmadoDesp = 'Sí' WHERE idMovimiento = ?", (id_movimiento,))
+        conexion.commit()
+        conexion.close()
+
+        # Actualizar la tabla de movimientos
+        self.cargar_movimientos()
+        messagebox.showinfo("Éxito", "Pago confirmado por el despachador.")
+    # Método para cargar los movimientos desde la base de datos
+    def cargar_movimientos(self):
+        # Limpiar la tabla antes de cargar nuevos datos
+        for row in self.tree_pagos.get_children():
+            self.tree_pagos.delete(row)
+
+        # Conectar a la base de datos y cargar todos los movimientos
+        conexion = sqlite3.connect("cootransol.db")
+        cursor = conexion.cursor()
+        cursor.execute("SELECT idMovimiento, fecha, vueltas, montoPago, rutaAsignada, placaVehiculo, horaInicio, horaFin, pagoConfirmadoDesp, pagado FROM Movimientos")
+        movimientos = cursor.fetchall()
+        conexion.close()
+
+        # Insertar los datos de cada movimiento en la tabla
+        for movimiento in movimientos:
+            self.tree_pagos.insert("", "end", values=movimiento)
+
+    def agregar_movimiento(self):
+        agregar_window = tk.Toplevel(self.despachador_root)
+        agregar_window.title("Agregar Nuevo Movimiento")
+
+        tk.Label(agregar_window, text="Número Interno del Vehículo:").grid(row=0, column=0, padx=10, pady=5)
+        entry_nro_interno = tk.Entry(agregar_window)
+        entry_nro_interno.grid(row=0, column=1, padx=10, pady=5)
+
+        tk.Label(agregar_window, text="Fecha:").grid(row=1, column=0, padx=10, pady=5)
+        entry_fecha = tk.Entry(agregar_window)
+        entry_fecha.grid(row=1, column=1, padx=10, pady=5)
+
+        tk.Label(agregar_window, text="Vueltas:").grid(row=2, column=0, padx=10, pady=5)
+        entry_vueltas = tk.Entry(agregar_window)
+        entry_vueltas.grid(row=2, column=1, padx=10, pady=5)
+
+        tk.Label(agregar_window, text="Ruta Asignada:").grid(row=3, column=0, padx=10, pady=5)
+        entry_ruta = tk.Entry(agregar_window)
+        entry_ruta.grid(row=3, column=1, padx=10, pady=5)
+
+        tk.Label(agregar_window, text="Hora de Inicio:").grid(row=4, column=0, padx=10, pady=5)
+        entry_hora_inicio = tk.Entry(agregar_window)
+        entry_hora_inicio.grid(row=4, column=1, padx=10, pady=5)
+
+        tk.Label(agregar_window, text="Hora de Fin:").grid(row=5, column=0, padx=10, pady=5)
+        entry_hora_fin = tk.Entry(agregar_window)
+        entry_hora_fin.grid(row=5, column=1, padx=10, pady=5)
+
+        def guardar_movimiento():
+            nro_interno = entry_nro_interno.get().strip()
+            fecha = entry_fecha.get().strip()
+            vueltas = entry_vueltas.get().strip()
+            ruta_asignada = entry_ruta.get().strip()
+            hora_inicio = entry_hora_inicio.get().strip()
+            hora_fin = entry_hora_fin.get().strip()
+
+            # Validar campos vacíos
+            if not (nro_interno and fecha and vueltas and ruta_asignada and hora_inicio and hora_fin):
+                messagebox.showwarning("Campos Vacíos", "Completa todos los campos.")
+                return
+
+            try:
+                vueltas = float(vueltas)
+            except ValueError:
+                messagebox.showwarning("Error de Valor", "La cantidad de vueltas debe ser un número.")
+                return
+
+            # Conectar a la base de datos para verificar el último movimiento del vehículo
+            conexion = sqlite3.connect("cootransol.db")
+            cursor = conexion.cursor()
+            cursor.execute('''
+                SELECT pagado FROM Movimientos 
+                WHERE numeroInternoVehiculo = ? 
+                ORDER BY idMovimiento DESC 
+                LIMIT 1
+            ''', (nro_interno,))
+            ultimo_movimiento = cursor.fetchone()
+
+            if ultimo_movimiento and ultimo_movimiento[0] != "Sí":
+                messagebox.showwarning("Restricción", "No se puede agregar un nuevo movimiento hasta que el movimiento anterior esté marcado como pagado.")
+                conexion.close()
+                return
+
+            # Calcular el monto del pago basado en la cantidad de vueltas
+            if vueltas <= 1:
+                monto_pago = 54000
+            else:
+                monto_pago = 94000
+
+            # Insertar el nuevo movimiento en la base de datos
+            cursor.execute('''
+                INSERT INTO Movimientos (fecha, vueltas, montoPago, rutaAsignada, placaVehiculo, numeroInternoVehiculo, horaInicio, horaFin, pagado)
+                VALUES (?, ?, ?, ?, NULL, ?, ?, ?, 'No')
+            ''', (fecha, vueltas, monto_pago, ruta_asignada, nro_interno, hora_inicio, hora_fin))
+            conexion.commit()
+            conexion.close()
+
+            messagebox.showinfo("Éxito", "Nuevo movimiento agregado.")
+            self.cargar_movimientos()  # Para actualizar la tabla en la interfaz
+            agregar_window.destroy()
+        btn_guardar = tk.Button(agregar_window, text="Guardar Movimiento", command=guardar_movimiento)
+        btn_guardar.grid(row=6, column=0, columnspan=2, pady=10)
 
 # Inicializar la ventana de inicio de sesión
 if __name__ == "__main__":

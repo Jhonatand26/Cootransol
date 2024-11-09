@@ -48,6 +48,7 @@ def conectar_db(retornar_cursor=False):
             numeroInternoVehiculo INTEGER,
             horaInicio TEXT,
             horaFin TEXT
+            pagoConfirmadoDesp TEXT DEFAULT 'No',
             pagado TEXT DEFAULT 'No'
         )
     ''')
