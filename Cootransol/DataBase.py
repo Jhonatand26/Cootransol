@@ -3,7 +3,7 @@ import sqlite3
 # Conexión a la base de datos
 # Conexión a la base de datos
 def conectar_db(retornar_cursor=False):
-    conexion = sqlite3.connect("D:/Asus/Escritorio/Psergio/cootransol.db")
+    conexion = sqlite3.connect("D:/Asus/Escritorio/Cootransol/Cootransol/cootransol.db")
     if retornar_cursor:
         cursor = conexion.cursor()
         return conexion, cursor  # Retorna tanto la conexión como el cursor
@@ -48,6 +48,7 @@ def conectar_db(retornar_cursor=False):
             numeroInternoVehiculo INTEGER,
             horaInicio TEXT,
             horaFin TEXT
+            pagado TEXT DEFAULT 'No'
         )
     ''')
 

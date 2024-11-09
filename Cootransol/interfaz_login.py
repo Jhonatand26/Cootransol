@@ -43,7 +43,7 @@ class LoginWindow:
             DespachadorWindow(despachador)  # Abrir la ventana del despachador pasando el objeto 'despachador'
         else:
             messagebox.showerror("Error de autenticación", "Usuario o contraseña incorrectos")
-# Función para cargar todos los conductores en la tabla de la interfaz
+
 # Ventana para el Administrador
 class AdminWindow:
     def __init__(self, admin):
@@ -62,12 +62,17 @@ class AdminWindow:
         self.tab_vehiculo = ttk.Frame(self.tab_control)
         self.tab_control.add(self.tab_vehiculo, text="Datos del Vehículo")
 
+        # Pestaña de Gestión de Pagos
+        self.tab_pagos = ttk.Frame(self.tab_control)
+        self.tab_control.add(self.tab_pagos, text="Gestión de Pagos")
+
         # Empaquetar las pestañas
         self.tab_control.pack(expand=1, fill="both")
 
         # Configuración de cada pestaña
         self.setup_conductor_tab()
         self.setup_vehiculo_tab()
+        self.setup_pago_tab()
 
         self.admin_root.mainloop()
 
@@ -160,8 +165,73 @@ class AdminWindow:
         self.btn_editar_vehiculo.grid(row=5, column=0, columnspan=3, pady=10)
 
         #Cargar info de los vehículos ya existentes
-        self.cargar_vehiculos()
+        self.cargar_vehiculos() 
+    def setup_pago_tab(self):
+
+        # Crear una tabla para mostrar los movimientos registrados
+        self.tree_pagos = ttk.Treeview(self.tab_pagos, columns=("idMovimiento", "fecha", "vueltas", "montoPago", "rutaAsignada", "placaVehiculo", "horaInicio", "horaFin", "pagado"), show='headings')
+        
+        # Definir los encabezados de las columnas
+        self.tree_pagos.heading("idMovimiento", text="ID Movimiento")
+        self.tree_pagos.heading("fecha", text="Fecha")
+        self.tree_pagos.heading("vueltas", text="Vueltas")
+        self.tree_pagos.heading("montoPago", text="Monto Pago")
+        self.tree_pagos.heading("rutaAsignada", text="Ruta Asignada")
+        self.tree_pagos.heading("placaVehiculo", text="Placa Vehículo")
+        self.tree_pagos.heading("horaInicio", text="Hora Inicio")
+        self.tree_pagos.heading("horaFin", text="Hora Fin")
+        self.tree_pagos.heading("pagado", text="Pagado")
+
+        # Definir el ancho de las columnas
+        for col in ("idMovimiento", "fecha", "vueltas", "montoPago", "rutaAsignada", "placaVehiculo", "horaInicio", "horaFin", "pagado"):
+            self.tree_pagos.column(col, width=100)
+
+        # Ubicar la tabla en la pestaña de pagos
+        self.tree_pagos.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Botón para marcar pago como realizado
+        btn_pagar = tk.Button(self.tab_pagos, text="Marcar Pago Realizado", command=self.marcar_pago)
+        btn_pagar.pack(pady=10)
+
+        # Cargar movimientos registrados al iniciar la pestaña de pagos
+        self.cargar_movimientos()
     
+    # Método para cargar los movimientos desde la base de datos
+    def cargar_movimientos(self):
+        # Limpiar la tabla antes de cargar nuevos datos
+        for row in self.tree_pagos.get_children():
+            self.tree_pagos.delete(row)
+
+        # Conectar a la base de datos y cargar todos los movimientos
+        conexion = sqlite3.connect("cootransol.db")
+        cursor = conexion.cursor()
+        cursor.execute("SELECT idMovimiento, fecha, vueltas, montoPago, rutaAsignada, placaVehiculo, horaInicio, horaFin, pago FROM Movimientos")
+        movimientos = cursor.fetchall()
+        conexion.close()
+
+        # Insertar los datos de cada movimiento en la tabla
+        for movimiento in movimientos:
+            self.tree_pagos.insert("", "end", values=movimiento)
+
+    # Método para marcar un pago como realizado
+    def marcar_pago(self):
+        selected_item = self.tree_pagos.selection()
+        if not selected_item:
+            messagebox.showwarning("Advertencia", "Por favor, seleccione un movimiento para marcar como pagado.")
+            return
+
+        id_movimiento = self.tree_pagos.item(selected_item, "values")[0]
+
+        # Conectar a la base de datos y marcar el movimiento como pagado
+        conexion = sqlite3.connect("cootransol.db")
+        cursor = conexion.cursor()
+        cursor.execute("UPDATE Movimientos SET pagado = 'Sí' WHERE idMovimiento = ?", (id_movimiento,))
+        conexion.commit()
+        conexion.close()
+
+        # Actualizar la tabla de movimientos
+        self.cargar_movimientos()
+        messagebox.showinfo("Éxito", "Pago marcado como realizado.")
     def eliminar_conductor(self):
         # Obtener el conductor seleccionado
         selected_item = self.tree_conductores.selection()
@@ -248,9 +318,9 @@ class AdminWindow:
             messagebox.showwarning("Advertencia", "Por favor, seleccione un vehículo para editar.")
             return
 
-        # Retrieve current vehicle data from the table
+        # Obtener los datos actuales del vehículo seleccionado
         nro_interno = self.tree_vehiculos.item(selected_item, "values")[0]
-        placa = self.tree_vehiculos.item(selected_item, "values")[1]
+        placa_actual = self.tree_vehiculos.item(selected_item, "values")[1]
         estado_actual = self.tree_vehiculos.item(selected_item, "values")[2]
         modelo_actual = self.tree_vehiculos.item(selected_item, "values")[3]
         soat_actual = self.tree_vehiculos.item(selected_item, "values")[4]
@@ -261,7 +331,6 @@ class AdminWindow:
         editar_window = tk.Toplevel(self.admin_root)
         editar_window.title("Editar Vehículo")
 
-        # Add fields for vehicle data
         tk.Label(editar_window, text="Número Interno:").grid(row=0, column=0, padx=10, pady=5)
         entry_nro_interno = tk.Entry(editar_window)
         entry_nro_interno.grid(row=0, column=1, padx=10, pady=5)
@@ -270,7 +339,7 @@ class AdminWindow:
         tk.Label(editar_window, text="Placa:").grid(row=1, column=0, padx=10, pady=5)
         entry_placa = tk.Entry(editar_window)
         entry_placa.grid(row=1, column=1, padx=10, pady=5)
-        entry_placa.insert(0, placa)
+        entry_placa.insert(0, placa_actual)
 
         tk.Label(editar_window, text="Estado:").grid(row=2, column=0, padx=10, pady=5)
         entry_estado = tk.Entry(editar_window)
@@ -302,45 +371,62 @@ class AdminWindow:
         entry_tecno.grid(row=7, column=1, padx=10, pady=5)
         entry_tecno.insert(0, tecno_actual)
 
-        # Dropdown for selecting an available driver
+        #Dropdown para seleccionar un conductor disponible
         tk.Label(editar_window, text="Asignar Conductor:").grid(row=8, column=0, padx=10, pady=5)
         self.conductor_var = tk.StringVar()
         self.dropdown_conductor = ttk.Combobox(editar_window, textvariable=self.conductor_var, state="readonly")
         self.dropdown_conductor.grid(row=8, column=1, padx=10, pady=5)
 
-        # Load available drivers (excluding already assigned ones)
-        conductores_disponibles = self.obtener_conductores_disponibles(nro_interno)  # Pass current assigned driver ID to filter correctly
+        # Cargar conductores disponibles (excluyendo aquellos que ya tienen un vehículo asignado)
+        conductores_disponibles = self.obtener_conductores_disponibles(nro_interno)
         self.dropdown_conductor["values"] = conductores_disponibles
 
         def guardar_cambios():
-            # Gather updated data
-            datos_actualizados = {
-                "nro_interno": entry_nro_interno.get().strip(),
-                "placa": entry_placa.get().strip(),
-                "estado": entry_estado.get().strip(),
-                "modelo": entry_modelo.get().strip(),
-                "vigencia_soat": entry_soat.get().strip(),
-                "vigencia_tarjeta": entry_tarjeta.get().strip(),
-                "vigencia_poliza": entry_poliza.get().strip(),
-                "vigencia_tecno": entry_tecno.get().strip()
-            }
+            nuevo_nro_interno = entry_nro_interno.get().strip()
+            nueva_placa = entry_placa.get().strip()
+            nuevo_estado = entry_estado.get().strip()
+            nuevo_modelo = entry_modelo.get().strip()
+            nueva_vigencia_soat = entry_soat.get().strip()
+            nueva_vigencia_tarjeta = entry_tarjeta.get().strip()
+            nueva_vigencia_poliza = entry_poliza.get().strip()
+            nueva_vigencia_tecno = entry_tecno.get().strip()
             conductor_seleccionado = self.conductor_var.get()
 
-            # Validate fields
-            if any(value == "" for value in datos_actualizados.values()) or not conductor_seleccionado:
-                messagebox.showwarning("Campos Vacíos", "Completa todos los campos.")
+            # Validar que todos los campos estén completos
+            if not (nuevo_nro_interno and nueva_placa and nuevo_estado and nuevo_modelo and 
+                    nueva_vigencia_soat and nueva_vigencia_tarjeta and nueva_vigencia_poliza and 
+                    nueva_vigencia_tecno and conductor_seleccionado):
+                messagebox.showwarning("Advertencia", "Todos los campos son obligatorios.")
                 return
 
-            # Extract the selected driver's ID
+            # Separar el ID del conductor seleccionado
             id_conductor = conductor_seleccionado.split(" - ")[0]
 
-            # Save changes (you should implement or update the method to save changes)
-            self.guardar_cambios_vehiculo(datos_actualizados, id_conductor)
+            # Conectar a la base de datos y actualizar los datos del vehículo
+            conexion = sqlite3.connect("cootransol.db")
+            cursor = conexion.cursor()
+            cursor.execute('''
+                UPDATE Vehiculos 
+                SET nro_interno = ?, placa = ?, estado = ?, modelo = ?, 
+                    vigencia_soat = ?, vigencia_tarjeta = ?, vigencia_poliza = ?, 
+                    vigencia_tecnomecanica = ?, idConductor = ?
+                WHERE nro_interno = ?
+            ''', (
+                nuevo_nro_interno, nueva_placa, nuevo_estado, nuevo_modelo, 
+                nueva_vigencia_soat, nueva_vigencia_tarjeta, nueva_vigencia_poliza, 
+                nueva_vigencia_tecno, id_conductor, nro_interno
+            ))
+            conexion.commit()
+            conexion.close()
+
             messagebox.showinfo("Éxito", "Vehículo editado correctamente.")
+            self.cargar_vehiculos()
             editar_window.destroy()
 
+                # Botón para guardar cambios
         btn_guardar = tk.Button(editar_window, text="Guardar Cambios", command=guardar_cambios)
-        btn_guardar.grid(row=9, column=0, columnspan=2, pady=10)
+        btn_guardar.grid(row=10, column=0, columnspan=2, pady=10)  # Cambié la fila a 10 para evitar conflictos con otros widgets
+
 
     def filtrar_conductor(self):
         # Lógica para filtrar los conductores en la base de datos y mostrar resultados en la tabla
@@ -368,10 +454,31 @@ class AdminWindow:
             messagebox.showinfo("Sin resultados", "No se encontró un conductor con esa identificación.")
 
     def filtrar_vehiculo(self):
-        # Lógica para filtrar los vehículos en la base de datos y mostrar resultados en la tabla
-        placa = self.entry_busqueda_vehiculo.get()
-        # Aquí llamaremos a una función para buscar en la base de datos y actualizar la tabla `tree_vehiculos`
-        # Ejemplo: self.tree_vehiculos.insert('', 'end', values=(placa, estado, modelo))
+        # Obtener el valor de la placa desde el campo de búsqueda
+        placa = self.entry_busqueda_vehiculo.get().strip()
+
+        # Validación de campo vacío
+        if not placa:
+            messagebox.showwarning("Campo vacío", "Por favor, ingrese una placa para buscar.")
+            return
+
+        # Conectar a la base de datos y buscar el vehículo por placa
+        conexion = sqlite3.connect("cootransol.db")
+        cursor = conexion.cursor()
+        cursor.execute("SELECT nro_interno, placa, estado, modelo, vigencia_soat, vigencia_tarjeta, vigencia_poliza, vigencia_tecnomecanica FROM Vehiculos WHERE placa = ?", (placa,))
+        vehiculos = cursor.fetchall()
+        conexion.close()
+
+        # Limpiar la tabla antes de mostrar el resultado de la búsqueda
+        for row in self.tree_vehiculos.get_children():
+            self.tree_vehiculos.delete(row)
+
+        # Mostrar los vehículos encontrados o mensaje si no existe
+        if vehiculos:
+            for vehiculo in vehiculos:
+                self.tree_vehiculos.insert("", "end", values=vehiculo)
+        else:
+            messagebox.showinfo("Sin resultados", "No se encontró un vehículo con esa placa.")
 
     def abrir_agregar_conductor(self):
         agregar_window = tk.Toplevel(self.admin_root)
@@ -586,24 +693,35 @@ class AdminWindow:
         btn_guardar = tk.Button(agregar_window, text="Guardar", command=agregar_vehiculo_callback)
         btn_guardar.grid(row=len(labels) + 1, column=0, columnspan=2, pady=10)
    
-    def obtener_conductores_disponibles(self):
+    def obtener_conductores_disponibles(self, nro_interno=None):
         try:
             # Confirma la ruta de la base de datos
-            db_path = "D:/Asus/Escritorio/Psergio/cootransol.db"
+            db_path = "D:/Asus/Escritorio/Cootransol/Cootransol/cootransol.db"
             print(f"Usando la base de datos en: {db_path}")
 
             conexion = sqlite3.connect(db_path)
             cursor = conexion.cursor()
 
-            # Prueba de consulta para verificar la columna `idConductor`
-            print("Ejecutando consulta para verificar conductores disponibles...")
-            cursor.execute("""
-                SELECT identificacion, nombre 
-                FROM Conductores 
-                WHERE identificacion NOT IN (
-                    SELECT idConductor FROM Vehiculos WHERE idConductor IS NOT NULL
-                )
-            """)
+            # Modificar la consulta para filtrar conductores si es necesario
+            if nro_interno is not None:
+                print("Filtrando conductores, excluyendo el asignado al vehículo actual...")
+                cursor.execute("""
+                    SELECT identificacion, nombre 
+                    FROM Conductores 
+                    WHERE identificacion NOT IN (
+                        SELECT idConductor FROM Vehiculos WHERE idConductor IS NOT NULL AND nro_interno != ?
+                    )
+                """, (nro_interno,))
+            else:
+                print("Obteniendo todos los conductores disponibles...")
+                cursor.execute("""
+                    SELECT identificacion, nombre 
+                    FROM Conductores 
+                    WHERE identificacion NOT IN (
+                        SELECT idConductor FROM Vehiculos WHERE idConductor IS NOT NULL
+                    )
+                """)
+            
             conductores = cursor.fetchall()
             print("Conductores disponibles:", conductores)
 
@@ -615,6 +733,7 @@ class AdminWindow:
         except sqlite3.OperationalError as e:
             print("Error en consulta SQL:", e)
             return []
+
         
     def verificar_conductor_disponible(self, id_conductor):
         """Verifica si el conductor está disponible (sin vehículo asignado)."""
@@ -644,13 +763,6 @@ class DespachadorWindow:
         self.tab_vehiculo = ttk.Frame(self.tab_control)
         self.tab_control.add(self.tab_vehiculo, text="Datos del Vehículo")
 
-        # Pestaña de Gestión de Pagos
-        self.tab_pagos = ttk.Frame(self.tab_control)
-        self.tab_control.add(self.tab_pagos, text="Gestionar Pagos")
-
-        # Pestaña de Asignar Rutas
-        self.tab_rutas = ttk.Frame(self.tab_control)
-        self.tab_control.add(self.tab_rutas, text="Asignar Ruta")
 
         # Empaquetar las pestañas
         self.tab_control.pack(expand=1, fill="both")
@@ -658,8 +770,6 @@ class DespachadorWindow:
         # Configuración de cada pestaña
         self.setup_conductor_tab()
         self.setup_vehiculo_tab()
-        self.setup_pagos_tab()
-        self.setup_rutas_tab()
 
         self.despachador_root.mainloop()
 
@@ -724,82 +834,124 @@ class DespachadorWindow:
         # Insertar los datos de cada conductor en la tabla
         for conductor in conductores:
             self.tree_conductores.insert("", "end", values=conductor)
+    
     def setup_vehiculo_tab(self):
-       def setup_conductor_tab(self):
-        # Campo de búsqueda por identificación
-        label_busqueda = tk.Label(self.tab_conductor, text="Buscar por Identificación:")
+        # Campo de búsqueda por placa
+        label_busqueda = tk.Label(self.tab_vehiculo, text="Buscar por Placa:")
         label_busqueda.grid(row=0, column=0, padx=10, pady=10, sticky="w")
-        self.entry_busqueda_conductor = tk.Entry(self.tab_conductor)
-        self.entry_busqueda_conductor.grid(row=0, column=1, padx=10, pady=10)
+        
+        self.entry_busqueda_vehiculo = tk.Entry(self.tab_vehiculo)
+        self.entry_busqueda_vehiculo.grid(row=0, column=1, padx=10, pady=10)
 
         # Botón de búsqueda
-        btn_buscar = tk.Button(self.tab_conductor, text="Buscar", command=self.filtrar_conductor)
+        btn_buscar = tk.Button(self.tab_vehiculo, text="Buscar", command=self.filtrar_vehiculo)
         btn_buscar.grid(row=0, column=2, padx=10, pady=10)
 
-        # Tabla para mostrar conductores
-        self.tree_conductores = ttk.Treeview(self.tab_conductor, columns=("Identificacion", "Nombre", "Licencia"), show="headings")
-        self.tree_conductores.heading("Identificacion", text="Identificacion")
-        self.tree_conductores.heading("Nombre", text="Nombre")
-        self.tree_conductores.heading("Licencia", text="Vigencia Licencia")
-        self.tree_conductores.grid(row=1, column=0, columnspan=3, padx=10, pady=10)
+        # Tabla para mostrar vehículos
+        self.tree_vehiculos = ttk.Treeview(self.tab_vehiculo, columns=("Nro", "Placa", "Estado", "Modelo", "SOAT", "Tarjeta", "Póliza", "Tecno"), show="headings", height=8)
+        
+        # Configurar encabezados de la tabla con nombres más compactos
+        self.tree_vehiculos.heading("Nro", text="Nro")
+        self.tree_vehiculos.heading("Placa", text="Placa")
+        self.tree_vehiculos.heading("Estado", text="Estado")
+        self.tree_vehiculos.heading("Modelo", text="Mod.")
+        self.tree_vehiculos.heading("SOAT", text="SOAT")
+        self.tree_vehiculos.heading("Tarjeta", text="Tarj. Op.")
+        self.tree_vehiculos.heading("Póliza", text="Póliza")
+        self.tree_vehiculos.heading("Tecno", text="Tecno")
 
-        self.cargar_conductores()
+        # Configurar columnas de la tabla con un ancho más reducido
+        self.tree_vehiculos.column("Nro", width=50, anchor="center")
+        self.tree_vehiculos.column("Placa", width=80, anchor="center")
+        self.tree_vehiculos.column("Estado", width=80, anchor="center")
+        self.tree_vehiculos.column("Modelo", width=60, anchor="center")
+        self.tree_vehiculos.column("SOAT", width=90, anchor="center")
+        self.tree_vehiculos.column("Tarjeta", width=90, anchor="center")
+        self.tree_vehiculos.column("Póliza", width=90, anchor="center")
+        self.tree_vehiculos.column("Tecno", width=90, anchor="center")
 
-    def setup_pagos_tab(self):
-        # Etiquetas y campos de entrada para los pagos
-        label_id_conductor = tk.Label(self.tab_pagos, text="ID del Conductor:")
-        label_id_conductor.grid(row=0, column=0, padx=10, pady=10, sticky="w")
-        self.entry_id_conductor_pago = tk.Entry(self.tab_pagos)
-        self.entry_id_conductor_pago.grid(row=0, column=1, padx=10, pady=10)
+        self.tree_vehiculos.grid(row=1, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
 
-        label_monto_pago = tk.Label(self.tab_pagos, text="Monto del Pago:")
-        label_monto_pago.grid(row=1, column=0, padx=10, pady=10, sticky="w")
-        self.entry_monto_pago = tk.Entry(self.tab_pagos)
-        self.entry_monto_pago.grid(row=1, column=1, padx=10, pady=10)
+        # Configurar barras de desplazamiento vertical y horizontal
+        scrollbar_y = ttk.Scrollbar(self.tab_vehiculo, orient="vertical", command=self.tree_vehiculos.yview)
+        scrollbar_y.grid(row=1, column=3, sticky="ns")
+        scrollbar_x = ttk.Scrollbar(self.tab_vehiculo, orient="horizontal", command=self.tree_vehiculos.xview)
+        scrollbar_x.grid(row=2, column=0, columnspan=3, sticky="ew")
+        
+        self.tree_vehiculos.configure(yscroll=scrollbar_y.set, xscroll=scrollbar_x.set)
 
-        # Botón para gestionar el pago
-        self.btn_gestionar_pago = tk.Button(self.tab_pagos, text="Gestionar Pago", bg="green", fg="white", command=self.gestionar_pago)
-        self.btn_gestionar_pago.grid(row=2, column=1, padx=10, pady=10, sticky="e")
+        #Cargar info de los vehículos ya existentes
+        self.cargar_vehiculos() 
 
-    def setup_rutas_tab(self):
-        # Etiquetas y campos de entrada para asignar rutas
-        label_id_conductor = tk.Label(self.tab_rutas, text="ID del Conductor:")
-        label_id_conductor.grid(row=0, column=0, padx=10, pady=10, sticky="w")
-        self.entry_id_conductor_ruta = tk.Entry(self.tab_rutas)
-        self.entry_id_conductor_ruta.grid(row=0, column=1, padx=10, pady=10)
+    def cargar_vehiculos(self):
+        # Limpiar la tabla antes de cargar nuevos datos
+        for row in self.tree_vehiculos.get_children():
+            self.tree_vehiculos.delete(row)
 
-        label_ruta = tk.Label(self.tab_rutas, text="Ruta a Asignar:")
-        label_ruta.grid(row=1, column=0, padx=10, pady=10, sticky="w")
-        self.entry_ruta = tk.Entry(self.tab_rutas)
-        self.entry_ruta.grid(row=1, column=1, padx=10, pady=10)
+        # Conectar a la base de datos y cargar todos los vehículos
+        conexion = sqlite3.connect("cootransol.db")
+        cursor = conexion.cursor()
+        cursor.execute("SELECT nro_interno, placa, estado, modelo, vigencia_soat, vigencia_tarjeta, vigencia_poliza, vigencia_tecnomecanica FROM Vehiculos")
+        vehiculos = cursor.fetchall()
+        conexion.close()
 
-        # Botón para asignar ruta
-        self.btn_asignar_ruta = tk.Button(self.tab_rutas, text="Asignar Ruta", bg="green", fg="white", command=self.asignar_ruta)
-        self.btn_asignar_ruta.grid(row=2, column=1, padx=10, pady=10, sticky="e")
+        # Insertar los datos de cada vehículo en la tabla
+        for vehiculo in vehiculos:
+            self.tree_vehiculos.insert("", "end", values=vehiculo) 
 
-    def gestionar_pago(self):
-        # Obtener los valores de los campos de pago
-        id_conductor = self.entry_id_conductor_pago.get()
-        monto_pago = self.entry_monto_pago.get()
+    def buscar_vehiculo(self):
+        # Obtener el valor de la placa desde el campo de búsqueda
+        placa = self.entry_busqueda_vehiculo.get().strip()
 
-        if id_conductor and monto_pago:
-            # Lógica para gestionar el pago
-            mensaje = self.despachador.gestionarPago(int(id_conductor), float(monto_pago))
-            messagebox.showinfo("Pago Gestionado", mensaje)
+        # Validación de campo vacío
+        if not placa:
+            messagebox.showwarning("Campo vacío", "Por favor, ingrese una placa para buscar.")
+            return
+
+        # Conectar a la base de datos y buscar el vehículo por placa
+        conexion = sqlite3.connect("cootransol.db")
+        cursor = conexion.cursor()
+        cursor.execute("SELECT placa, estado, modelo, vigencia_soat, vigencia_tarjeta, vigencia_poliza, vigencia_tecnomecanica FROM Vehiculos WHERE placa = ?", (placa,))
+        vehiculo = cursor.fetchone()
+        conexion.close()
+
+        # Limpiar la tabla antes de mostrar el resultado de la búsqueda
+        for row in self.tree_vehiculos.get_children():
+            self.tree_vehiculos.delete(row)
+
+        # Mostrar el vehículo encontrado o mensaje si no existe
+        if vehiculo:
+            self.tree_vehiculos.insert("", "end", values=vehiculo)
         else:
-            messagebox.showerror("Error", "Debe llenar todos los campos.")
+            messagebox.showinfo("Sin resultados", "No se encontró un vehículo con esa placa.")
 
-    def asignar_ruta(self):
-        # Obtener los valores de los campos de asignación de ruta
-        id_conductor = self.entry_id_conductor_ruta.get()
-        ruta = self.entry_ruta.get()
+    def filtrar_vehiculo(self):
+        # Obtener el valor de la placa desde el campo de búsqueda
+        placa = self.entry_busqueda_vehiculo.get().strip()
 
-        if id_conductor and ruta:
-            # Lógica para asignar la ruta
-            mensaje = self.despachador.asignarRuta(int(id_conductor), ruta)
-            messagebox.showinfo("Ruta Asignada", mensaje)
+        # Validación de campo vacío
+        if not placa:
+            messagebox.showwarning("Campo vacío", "Por favor, ingrese una placa para buscar.")
+            return
+
+        # Conectar a la base de datos y buscar el vehículo por placa
+        conexion = sqlite3.connect("cootransol.db")
+        cursor = conexion.cursor()
+        cursor.execute("SELECT nro_interno, placa, estado, modelo, vigencia_soat, vigencia_tarjeta, vigencia_poliza, vigencia_tecnomecanica FROM Vehiculos WHERE placa = ?", (placa,))
+        vehiculos = cursor.fetchall()
+        conexion.close()
+
+        # Limpiar la tabla antes de mostrar el resultado de la búsqueda
+        for row in self.tree_vehiculos.get_children():
+            self.tree_vehiculos.delete(row)
+
+        # Mostrar los vehículos encontrados o mensaje si no existe
+        if vehiculos:
+            for vehiculo in vehiculos:
+                self.tree_vehiculos.insert("", "end", values=vehiculo)
         else:
-            messagebox.showerror("Error", "Debe llenar todos los campos.")
+            messagebox.showinfo("Sin resultados", "No se encontró un vehículo con esa placa.")
+
 # Inicializar la ventana de inicio de sesión
 if __name__ == "__main__":
     root = tk.Tk()
