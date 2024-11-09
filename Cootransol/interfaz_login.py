@@ -31,12 +31,12 @@ class LoginWindow:
         password = self.entry_pass.get()
 
         # Suponemos que el administrador tiene el usuario 'admin' y el despachador tiene 'despachador'
-        if username == "admin" and password == "adminpass":
+        if username == "admin" and password == "1234":
             messagebox.showinfo("Login exitoso", "Bienvenido Administrador")
             self.root.destroy()  # Cerrar la ventana de login
             admin = Administrador(username, password, "admin")
             AdminWindow(admin)  # Abrir la ventana de administración pasando el objeto 'admin'
-        elif username == "despachador" and password == "despachadorpass":
+        elif username == "despachador" and password == "1234":
             messagebox.showinfo("Login exitoso", "Bienvenido Despachador")
             self.root.destroy()  # Cerrar la ventana de login
             despachador = Despachador(username, password, "despachador")
