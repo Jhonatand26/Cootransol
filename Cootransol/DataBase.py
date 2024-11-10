@@ -1,9 +1,14 @@
 import sqlite3
+import os
+# Conexión a la base de datos
+# Conexión a la base de datos
 
-# Conexión a la base de datos
-# Conexión a la base de datos
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "cootransol.db")
+print("Ruta de la base de datos utilizada:", DB_PATH)
+
 def conectar_db(retornar_cursor=False):
-    conexion = sqlite3.connect("D:/Asus/Escritorio/Cootransol/Cootransol/cootransol.db")
+    conexion = sqlite3.connect(DB_PATH)
     if retornar_cursor:
         cursor = conexion.cursor()
         return conexion, cursor  # Retorna tanto la conexión como el cursor
@@ -75,7 +80,7 @@ def agregar_vehiculo(nro_interno, placa, estado, modelo, vigencia_soat, vigencia
 # Metodo para eliminar un vehículo
 def eliminar_vehiculo_db(placa):
     # Este código va en `DataBase.py`
-    conexion = sqlite3.connect("cootransol.db")
+    conexion = sqlite3.connect(DB_PATH)
     cursor = conexion.cursor()
 
     # Desvincular el vehículo del conductor
@@ -101,7 +106,7 @@ def agregar_conductor(identificacion, nombre, vigencia_licencia):
 def eliminar_conductor_db(identificacion):
 
     # Este código va en `DataBase.py`
-    conexion = sqlite3.connect("cootransol.db")
+    conexion = sqlite3.connect(DB_PATH)
     cursor = conexion.cursor()
 
     # Desvincular el conductor del vehículo

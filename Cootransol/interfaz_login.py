@@ -1,3 +1,4 @@
+import os
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 from sistema_cootransol import Administrador, Despachador  # Importar las clases del sistema
@@ -6,6 +7,9 @@ import sqlite3
 from tkcalendar import DateEntry
 from PIL import Image, ImageTk
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+image_path = os.path.join(BASE_DIR, "logo.jpg")  # Asegúrate de que "logo.jpg" esté en la carpeta correcta
+DB_PATH = os.path.join(BASE_DIR, "cootransol.db")
 # Ventana de inicio de sesión
 import tkinter as tk
 from tkinter import messagebox
@@ -19,7 +23,7 @@ class LoginWindow:
         self.center_window(350, 350)
 
         # Cargar y mostrar la imagen
-        image = Image.open("D:\Asus\Escritorio\Cootransol\Cootransol\logo.jpg")  # Cambia esto a la ruta de tu imagen
+        image = Image.open(image_path)  # Cambia esto a la ruta de tu imagen
         image = image.resize((200, 100))  # Ajusta el tamaño de la imagen si es necesario
         photo = ImageTk.PhotoImage(image)
         label_image = tk.Label(root, image=photo)
@@ -259,7 +263,7 @@ class AdminWindow:
         self.cargar_movimientos()
 
     def obtener_numeros_internos(self):
-        conexion = sqlite3.connect("cootransol.db")
+        conexion = sqlite3.connect(DB_PATH)
         cursor = conexion.cursor()
         cursor.execute("SELECT nro_interno FROM Vehiculos")
         numeros_internos = cursor.fetchall()
@@ -267,7 +271,7 @@ class AdminWindow:
         return [str(nro[0]) for nro in numeros_internos]
 
     def obtener_placa_por_nro_interno(self, nro_interno):
-        conexion = sqlite3.connect("cootransol.db")
+        conexion = sqlite3.connect(DB_PATH)
         cursor = conexion.cursor()
         cursor.execute("SELECT placa FROM Vehiculos WHERE nro_interno = ?", (nro_interno,))
         resultado = cursor.fetchone()
@@ -353,7 +357,7 @@ class AdminWindow:
                 return
 
             # Aquí se debe actualizar el movimiento en la base de datos con los nuevos valores
-            conexion = sqlite3.connect("cootransol.db")
+            conexion = sqlite3.connect(DB_PATH)
             cursor = conexion.cursor()
             cursor.execute('''UPDATE Movimientos SET fecha = ?, vueltas = ?, rutaAsignada = ?, 
                             horaInicio = ?, horaFin = ? WHERE idMovimiento = ?''',
@@ -384,7 +388,7 @@ class AdminWindow:
         respuesta = messagebox.askyesno("Confirmar Eliminación", f"¿Está seguro de eliminar el movimiento con ID {id_movimiento}?")
         if respuesta:
             # Connect to the database and delete the movement
-            conexion = sqlite3.connect("cootransol.db")
+            conexion = sqlite3.connect(DB_PATH)
             cursor = conexion.cursor()
             cursor.execute("DELETE FROM Movimientos WHERE idMovimiento = ?", (id_movimiento,))
             conexion.commit()
@@ -399,7 +403,7 @@ class AdminWindow:
             self.tree_pagos.delete(row)
 
         # Conectar a la base de datos y cargar todos los movimientos con la placa asociada
-        conexion = sqlite3.connect("cootransol.db")
+        conexion = sqlite3.connect(DB_PATH)
         cursor = conexion.cursor()
         cursor.execute('''
             SELECT m.idMovimiento, m.fecha, m.vueltas, m.montoPago, m.rutaAsignada, 
@@ -423,7 +427,7 @@ class AdminWindow:
         id_movimiento = self.tree_pagos.item(selected_item, "values")[0]
 
         # Conectar a la base de datos y marcar el movimiento como pagado
-        conexion = sqlite3.connect("cootransol.db")
+        conexion = sqlite3.connect(DB_PATH)
         cursor = conexion.cursor()
         cursor.execute("UPDATE Movimientos SET pagado = 'Sí' WHERE idMovimiento = ?", (id_movimiento,))
         conexion.commit()
@@ -488,7 +492,7 @@ class AdminWindow:
                 messagebox.showwarning("Advertencia", "Todos los campos son obligatorios.")
                 return
 
-            conexion = sqlite3.connect("cootransol.db")
+            conexion = sqlite3.connect(DB_PATH)
             cursor = conexion.cursor()
             cursor.execute("UPDATE Conductores SET identificacion = ?, nombre = ?, vigencia_licencia = ? WHERE identificacion = ?",
                         (nuevo_id, nuevo_nombre, nueva_vigencia, identificacion))
@@ -605,7 +609,7 @@ class AdminWindow:
             id_conductor = conductor_seleccionado.split(" - ")[0]
 
             # Conectar a la base de datos y actualizar los datos del vehículo
-            conexion = sqlite3.connect("cootransol.db")
+            conexion = sqlite3.connect(DB_PATH)
             cursor = conexion.cursor()
             cursor.execute('''
                 UPDATE Vehiculos 
@@ -638,7 +642,7 @@ class AdminWindow:
             messagebox.showwarning("Campo vacío", "Por favor, ingrese una identificación para buscar.")
             return        # Conectar a la base de datos y buscar el conductor por identificación
 
-        conexion = sqlite3.connect("cootransol.db")
+        conexion = sqlite3.connect(DB_PATH)
         cursor = conexion.cursor()
         cursor.execute("SELECT identificacion, nombre, vigencia_licencia FROM Conductores WHERE identificacion = ?", (identificacion,))
         conductor = cursor.fetchone()
@@ -664,7 +668,7 @@ class AdminWindow:
             return
 
         # Conectar a la base de datos y buscar el vehículo por placa
-        conexion = sqlite3.connect("cootransol.db")
+        conexion = sqlite3.connect(DB_PATH)
         cursor = conexion.cursor()
         cursor.execute("SELECT nro_interno, placa, estado, modelo, vigencia_soat, vigencia_tarjeta, vigencia_poliza, vigencia_tecnomecanica FROM Vehiculos WHERE placa = ?", (placa,))
         vehiculos = cursor.fetchall()
@@ -748,7 +752,7 @@ class AdminWindow:
                 return
 
             # Actualizar la base de datos para asignar el conductor al vehículo
-            conexion = sqlite3.connect("cootransol.db")
+            conexion = sqlite3.connect(DB_PATH)
             cursor = conexion.cursor()
             cursor.execute("UPDATE Vehiculos SET idConductor = ? WHERE idVehiculo = ?", (id_conductor, id_vehiculo))
             conexion.commit()
@@ -766,7 +770,7 @@ class AdminWindow:
             self.tree_conductores.delete(row)
 
         # Conectar a la base de datos y obtener todos los conductores
-        conexion = sqlite3.connect("cootransol.db")
+        conexion = sqlite3.connect(DB_PATH)
         cursor = conexion.cursor()
         cursor.execute("SELECT identificacion, nombre, vigencia_licencia FROM Conductores")
         conductores = cursor.fetchall()
@@ -782,7 +786,7 @@ class AdminWindow:
             self.tree_vehiculos.delete(row)
 
         # Conectar a la base de datos y cargar todos los vehículos
-        conexion = sqlite3.connect("cootransol.db")
+        conexion = sqlite3.connect(DB_PATH)
         cursor = conexion.cursor()
         cursor.execute("SELECT nro_interno, placa, estado, modelo, vigencia_soat, vigencia_tarjeta, vigencia_poliza, vigencia_tecnomecanica FROM Vehiculos")
         vehiculos = cursor.fetchall()
@@ -802,7 +806,7 @@ class AdminWindow:
             return
 
         # Conectar a la base de datos y buscar el vehículo por placa
-        conexion = sqlite3.connect("cootransol.db")
+        conexion = sqlite3.connect(DB_PATH)
         cursor = conexion.cursor()
         cursor.execute("SELECT placa, estado, modelo, vigencia_soat, vigencia_tarjeta, vigencia_poliza, vigencia_tecnomecanica FROM Vehiculos WHERE placa = ?", (placa,))
         vehiculo = cursor.fetchone()
@@ -954,7 +958,7 @@ class AdminWindow:
 
     def verificar_conductor_disponible(self, id_conductor):
         """Verifica si el conductor está disponible (sin vehículo asignado)."""
-        conexion = sqlite3.connect("cootransol.db")
+        conexion = sqlite3.connect(DB_PATH)
         cursor = conexion.cursor()
         cursor.execute("SELECT COUNT(*) FROM Vehiculos WHERE idConductor = ?", (id_conductor,))
         resultado = cursor.fetchone()[0]
@@ -1037,7 +1041,7 @@ class DespachadorWindow:
             return
 
         # Conectar a la base de datos y buscar el conductor por identificación
-        conexion = sqlite3.connect("cootransol.db")
+        conexion = sqlite3.connect(DB_PATH)
         cursor = conexion.cursor()
         cursor.execute("SELECT identificacion, nombre, vigencia_licencia FROM Conductores WHERE identificacion = ?", (identificacion,))
         conductor = cursor.fetchone()
@@ -1059,7 +1063,7 @@ class DespachadorWindow:
             self.tree_conductores.delete(row)
 
         # Conectar a la base de datos y cargar todos los conductores
-        conexion = sqlite3.connect("cootransol.db")
+        conexion = sqlite3.connect(DB_PATH)
         cursor = conexion.cursor()
         cursor.execute("SELECT identificacion, nombre, vigencia_licencia FROM Conductores")
         conductores = cursor.fetchall()
@@ -1129,7 +1133,7 @@ class DespachadorWindow:
             self.tree_vehiculos.delete(row)
 
         # Conectar a la base de datos y cargar todos los vehículos
-        conexion = sqlite3.connect("cootransol.db")
+        conexion = sqlite3.connect(DB_PATH)
         cursor = conexion.cursor()
         cursor.execute("SELECT nro_interno, placa, estado, modelo, vigencia_soat, vigencia_tarjeta, vigencia_poliza, vigencia_tecnomecanica FROM Vehiculos")
         vehiculos = cursor.fetchall()
@@ -1149,7 +1153,7 @@ class DespachadorWindow:
             return
 
         # Conectar a la base de datos y buscar el vehículo por placa
-        conexion = sqlite3.connect("cootransol.db")
+        conexion = sqlite3.connect(DB_PATH)
         cursor = conexion.cursor()
         cursor.execute("SELECT placa, estado, modelo, vigencia_soat, vigencia_tarjeta, vigencia_poliza, vigencia_tecnomecanica FROM Vehiculos WHERE placa = ?", (placa,))
         vehiculo = cursor.fetchone()
@@ -1175,7 +1179,7 @@ class DespachadorWindow:
             return
 
         # Conectar a la base de datos y buscar el vehículo por placa
-        conexion = sqlite3.connect("cootransol.db")
+        conexion = sqlite3.connect(DB_PATH)
         cursor = conexion.cursor()
         cursor.execute("SELECT nro_interno, placa, estado, modelo, vigencia_soat, vigencia_tarjeta, vigencia_poliza, vigencia_tecnomecanica FROM Vehiculos WHERE placa = ?", (placa,))
         vehiculos = cursor.fetchall()
@@ -1243,7 +1247,7 @@ class DespachadorWindow:
         id_movimiento = self.tree_pagos.item(selected_item, "values")[0]
 
         # Conectar a la base de datos y actualizar el estado de confirmación del pago
-        conexion = sqlite3.connect("cootransol.db")
+        conexion = sqlite3.connect(DB_PATH)
         cursor = conexion.cursor()
         cursor.execute("UPDATE Movimientos SET pagoConfirmadoDesp = 'Sí' WHERE idMovimiento = ?", (id_movimiento,))
         conexion.commit()
@@ -1259,7 +1263,7 @@ class DespachadorWindow:
             self.tree_pagos.delete(row)
 
         # Conectar a la base de datos y cargar todos los movimientos
-        conexion = sqlite3.connect("cootransol.db")
+        conexion = sqlite3.connect(DB_PATH)
         cursor = conexion.cursor()
         cursor.execute("SELECT idMovimiento, fecha, vueltas, montoPago, rutaAsignada, placaVehiculo, horaInicio, horaFin, pagoConfirmadoDesp, pagado FROM Movimientos")
         movimientos = cursor.fetchall()
@@ -1355,7 +1359,7 @@ class DespachadorWindow:
                 return
 
             # Conectar a la base de datos para verificar el último movimiento del vehículo
-            conexion = sqlite3.connect("cootransol.db")
+            conexion = sqlite3.connect(DB_PATH)
             cursor = conexion.cursor()
             cursor.execute('''
                 SELECT pagado FROM Movimientos 
@@ -1391,7 +1395,7 @@ class DespachadorWindow:
         btn_guardar.grid(row=7, column=0, columnspan=2, pady=10)
 
     def obtener_numeros_internos(self):
-        conexion = sqlite3.connect("cootransol.db")
+        conexion = sqlite3.connect(DB_PATH)
         cursor = conexion.cursor()
         cursor.execute("SELECT nro_interno FROM Vehiculos")
         numeros_internos = cursor.fetchall()
@@ -1401,7 +1405,7 @@ class DespachadorWindow:
     def actualizar_placa_vehiculo(self, event):
         nro_interno = self.nro_interno_var.get()
         if nro_interno:
-            conexion = sqlite3.connect("cootransol.db")
+            conexion = sqlite3.connect(DB_PATH)
             cursor = conexion.cursor()
             cursor.execute("SELECT placa FROM Vehiculos WHERE nro_interno = ?", (nro_interno,))
             resultado = cursor.fetchone()
