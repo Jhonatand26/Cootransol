@@ -3,28 +3,53 @@ from tkinter import ttk, messagebox, simpledialog
 from sistema_cootransol import Administrador, Despachador  # Importar las clases del sistema
 from DataBase import agregar_conductor, agregar_vehiculo, eliminar_vehiculo_db, eliminar_conductor_db  # Importar funciones para base de datos
 import sqlite3
+from tkcalendar import DateEntry
+from PIL import Image, ImageTk
+
 # Ventana de inicio de sesión
+import tkinter as tk
+from tkinter import messagebox
+
 class LoginWindow:
     def __init__(self, root):
         self.root = root
         self.root.title("Login - COOTRANSOL")
+
+        # Centrando la ventana
+        self.center_window(350, 350)
+
+        # Cargar y mostrar la imagen
+        image = Image.open("D:\Asus\Escritorio\Cootransol\Cootransol\logo.jpg")  # Cambia esto a la ruta de tu imagen
+        image = image.resize((200, 100))  # Ajusta el tamaño de la imagen si es necesario
+        photo = ImageTk.PhotoImage(image)
+        label_image = tk.Label(root, image=photo)
+        label_image.image = photo  # Esto es necesario para que la imagen no sea eliminada por el recolector de basura
+        label_image.pack(pady=10)
 
         # Etiquetas y entradas para el usuario y la contraseña
         self.label_user = tk.Label(root, text="Usuario")
         self.label_user.pack(pady=5)
 
         self.entry_user = tk.Entry(root)
-        self.entry_user.pack(pady=5)
+        self.entry_user.pack(pady=5, padx=20, fill="x")
 
         self.label_pass = tk.Label(root, text="Contraseña")
         self.label_pass.pack(pady=5)
 
         self.entry_pass = tk.Entry(root, show="*")
-        self.entry_pass.pack(pady=5)
+        self.entry_pass.pack(pady=5, padx=20, fill="x")
 
         # Botón de inicio de sesión
         self.btn_login = tk.Button(root, text="Iniciar Sesión", command=self.login)
         self.btn_login.pack(pady=20)
+
+    def center_window(self, width=300, height=200):
+        """Centrar la ventana en la pantalla."""
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        x_cordinate = int((screen_width/2) - (width/2))
+        y_cordinate = int((screen_height/2) - (height/2))
+        self.root.geometry(f"{width}x{height}+{x_cordinate}+{y_cordinate}")
 
     def login(self):
         username = self.entry_user.get()
@@ -50,6 +75,8 @@ class AdminWindow:
         self.admin = admin
         self.admin_root = tk.Tk()
         self.admin_root.title("Sistema de Gestión de Transporte - COOTRANSOL")
+        self.admin_root.state('zoomed')  # Ajusta los valores de ancho y alto según tu preferencia
+        self.admin_root.bind("<Escape>", lambda event: self.admin_root.attributes("-fullscreen", False))
 
         # Crear Notebook (pestañas)
         self.tab_control = ttk.Notebook(self.admin_root)
@@ -74,56 +101,81 @@ class AdminWindow:
         self.setup_vehiculo_tab()
         self.setup_pago_tab()
 
-        self.admin_root.mainloop()
+        # Vincular el evento para ajustar el tamaño al cambiar de pestaña
+        self.tab_control.bind("<<NotebookTabChanged>>", self.ajustar_tamano_pestana)
 
+        self.admin_root.mainloop()
+   
+    def ajustar_tamano_pestana(self, event):
+        # Obtiene la pestaña seleccionada
+        tab_id = event.widget.select()
+        frame_activo = event.widget.nametowidget(tab_id)
+
+        # Ajusta el tamaño de la ventana principal según el tamaño del contenido de la pestaña activa
+        frame_activo.update_idletasks()  # Asegura que el contenido esté actualizado
+        ancho = max(frame_activo.winfo_width(), 1600)  # Valor mínimo de ancho
+        alto = max(frame_activo.winfo_height(), 1200)  # Valor mínimo de alto
+
+        self.admin_root.geometry(f"{ancho}x{alto}")  # Ajusta el tamaño de la ventana principal
+   
     def setup_conductor_tab(self):
+        # Configurar la distribución de las filas y columnas para expandirse
+        self.tab_conductor.rowconfigure(1, weight=1)  # Tabla de conductores
+        self.tab_conductor.columnconfigure(1, weight=1)  # Columna central
+        
         # Campo de búsqueda por identificación
         label_busqueda = tk.Label(self.tab_conductor, text="Buscar por Identificación:")
         label_busqueda.grid(row=0, column=0, padx=10, pady=10, sticky="w")
         self.entry_busqueda_conductor = tk.Entry(self.tab_conductor)
-        self.entry_busqueda_conductor.grid(row=0, column=1, padx=10, pady=10)
+        self.entry_busqueda_conductor.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
 
         # Botón de búsqueda
         btn_buscar = tk.Button(self.tab_conductor, text="Buscar", command=self.filtrar_conductor)
-        btn_buscar.grid(row=0, column=2, padx=10, pady=10)
+        btn_buscar.grid(row=0, column=2, padx=10, pady=10, sticky="e")
 
         # Tabla para mostrar conductores
         self.tree_conductores = ttk.Treeview(self.tab_conductor, columns=("Identificacion", "Nombre", "Licencia"), show="headings")
         self.tree_conductores.heading("Identificacion", text="Identificacion")
         self.tree_conductores.heading("Nombre", text="Nombre")
         self.tree_conductores.heading("Licencia", text="Vigencia Licencia")
-        self.tree_conductores.grid(row=1, column=0, columnspan=3, padx=10, pady=10)
+        self.tree_conductores.grid(row=1, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
 
+        # Scrollbars para la tabla
+        scrollbar_y = ttk.Scrollbar(self.tab_conductor, orient="vertical", command=self.tree_conductores.yview)
+        self.tree_conductores.configure(yscroll=scrollbar_y.set)
+        scrollbar_y.grid(row=1, column=3, sticky="ns")
+        
         # Botón para agregar conductor
         btn_agregar_conductor = tk.Button(self.tab_conductor, text="Agregar Conductor", command=self.abrir_agregar_conductor)
-        btn_agregar_conductor.grid(row=2, column=0, columnspan=3, pady=10)
+        btn_agregar_conductor.grid(row=2, column=0, columnspan=3, pady=10, sticky="ew")
 
         # Botón para eliminar conductor
         self.btn_eliminar_conductor = tk.Button(self.tab_conductor, text="Eliminar Conductor", command=self.eliminar_conductor)
-        self.btn_eliminar_conductor.grid(row=3, column=0, columnspan=3, pady=10)
+        self.btn_eliminar_conductor.grid(row=3, column=0, columnspan=3, pady=10, sticky="ew")
 
         # Botón para editar conductor
         self.btn_editar_conductor = tk.Button(self.tab_conductor, text="Editar Conductor", command=self.editar_conductor)
-        self.btn_editar_conductor.grid(row=4, column=0, columnspan=3, pady=10)
+        self.btn_editar_conductor.grid(row=4, column=0, columnspan=3, pady=10, sticky="ew")
 
         self.cargar_conductores()
    
     def setup_vehiculo_tab(self):
+        # Configurar la distribución de las filas y columnas para expandirse
+        self.tab_vehiculo.rowconfigure(1, weight=1)  # Tabla de vehículos
+        self.tab_vehiculo.columnconfigure(1, weight=1)  # Columna central
+
         # Campo de búsqueda por placa
         label_busqueda = tk.Label(self.tab_vehiculo, text="Buscar por Placa:")
         label_busqueda.grid(row=0, column=0, padx=10, pady=10, sticky="w")
-        
         self.entry_busqueda_vehiculo = tk.Entry(self.tab_vehiculo)
-        self.entry_busqueda_vehiculo.grid(row=0, column=1, padx=10, pady=10)
+        self.entry_busqueda_vehiculo.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
 
         # Botón de búsqueda
         btn_buscar = tk.Button(self.tab_vehiculo, text="Buscar", command=self.filtrar_vehiculo)
-        btn_buscar.grid(row=0, column=2, padx=10, pady=10)
+        btn_buscar.grid(row=0, column=2, padx=10, pady=10, sticky="e")
 
         # Tabla para mostrar vehículos
-        self.tree_vehiculos = ttk.Treeview(self.tab_vehiculo, columns=("Nro", "Placa", "Estado", "Modelo", "SOAT", "Tarjeta", "Póliza", "Tecno"), show="headings", height=8)
-        
-        # Configurar encabezados de la tabla con nombres más compactos
+        self.tree_vehiculos = ttk.Treeview(self.tab_vehiculo, columns=("Nro", "Placa", "Estado", "Modelo", "SOAT", "Tarjeta", "Póliza", "Tecno"), show="headings")
         self.tree_vehiculos.heading("Nro", text="Nro")
         self.tree_vehiculos.heading("Placa", text="Placa")
         self.tree_vehiculos.heading("Estado", text="Estado")
@@ -133,7 +185,7 @@ class AdminWindow:
         self.tree_vehiculos.heading("Póliza", text="Póliza")
         self.tree_vehiculos.heading("Tecno", text="Tecno")
 
-        # Configurar columnas de la tabla con un ancho más reducido
+        # Configurar columnas de la tabla
         self.tree_vehiculos.column("Nro", width=50, anchor="center")
         self.tree_vehiculos.column("Placa", width=80, anchor="center")
         self.tree_vehiculos.column("Estado", width=80, anchor="center")
@@ -150,23 +202,22 @@ class AdminWindow:
         scrollbar_y.grid(row=1, column=3, sticky="ns")
         scrollbar_x = ttk.Scrollbar(self.tab_vehiculo, orient="horizontal", command=self.tree_vehiculos.xview)
         scrollbar_x.grid(row=2, column=0, columnspan=3, sticky="ew")
-        
         self.tree_vehiculos.configure(yscroll=scrollbar_y.set, xscroll=scrollbar_x.set)
 
         # Botón para agregar vehículo
         btn_agregar_vehiculo = tk.Button(self.tab_vehiculo, text="Agregar Vehículo", command=self.abrir_agregar_vehiculo)
-        btn_agregar_vehiculo.grid(row=3, column=0, columnspan=3, pady=10)
+        btn_agregar_vehiculo.grid(row=3, column=0, columnspan=3, pady=10, sticky="ew")
 
         # Botón para eliminar vehículo
         self.btn_eliminar_vehiculo = tk.Button(self.tab_vehiculo, text="Eliminar Vehículo", command=self.eliminar_vehiculo)
-        self.btn_eliminar_vehiculo.grid(row=4, column=0, columnspan=3, pady=10)
+        self.btn_eliminar_vehiculo.grid(row=4, column=0, columnspan=3, pady=10, sticky="ew")
 
         # Botón para editar vehículo
         self.btn_editar_vehiculo = tk.Button(self.tab_vehiculo, text="Editar Vehículo", command=self.editar_vehiculo)
-        self.btn_editar_vehiculo.grid(row=5, column=0, columnspan=3, pady=10)
+        self.btn_editar_vehiculo.grid(row=5, column=0, columnspan=3, pady=10, sticky="ew")
 
-        #Cargar info de los vehículos ya existentes
-        self.cargar_vehiculos() 
+        # Cargar información de los vehículos ya existentes
+        self.cargar_vehiculos()
    
     def setup_pago_tab(self):
 
@@ -194,28 +245,174 @@ class AdminWindow:
 
         # Botón para marcar pago como realizado
         btn_pagar = tk.Button(self.tab_pagos, text="Marcar Pago Realizado", command=self.marcar_pago)
-        btn_pagar.pack(pady=10)
+        btn_pagar.pack(side="left", padx=5, pady=10)
+
+        # Botón para editar movimiento
+        btn_editar_movimiento = tk.Button(self.tab_pagos, text="Editar Movimiento", command=self.editar_movimiento)
+        btn_editar_movimiento.pack(side="left", padx=5, pady=10)
+
+        # Botón para eliminar movimiento
+        btn_eliminar_movimiento = tk.Button(self.tab_pagos, text="Eliminar Movimiento", command=self.eliminar_movimiento)
+        btn_eliminar_movimiento.pack(side="left", padx=5, pady=10)
 
         # Cargar movimientos registrados al iniciar la pestaña de pagos
         self.cargar_movimientos()
-    
-    # Método para cargar los movimientos desde la base de datos
+
+    def obtener_numeros_internos(self):
+        conexion = sqlite3.connect("cootransol.db")
+        cursor = conexion.cursor()
+        cursor.execute("SELECT nro_interno FROM Vehiculos")
+        numeros_internos = cursor.fetchall()
+        conexion.close()
+        return [str(nro[0]) for nro in numeros_internos]
+
+    def obtener_placa_por_nro_interno(self, nro_interno):
+        conexion = sqlite3.connect("cootransol.db")
+        cursor = conexion.cursor()
+        cursor.execute("SELECT placa FROM Vehiculos WHERE nro_interno = ?", (nro_interno,))
+        resultado = cursor.fetchone()
+        conexion.close()
+        return resultado[0] if resultado else "No disponible"
+
+    def editar_movimiento(self):
+        selected_item = self.tree_pagos.selection()
+        if not selected_item:
+            messagebox.showwarning("Advertencia", "Por favor, seleccione un movimiento para editar.")
+            return
+
+        # Obtener los datos actuales del movimiento seleccionado
+        id_movimiento = self.tree_pagos.item(selected_item, "values")[0]
+        fecha_actual = self.tree_pagos.item(selected_item, "values")[1]
+        vueltas_actual = self.tree_pagos.item(selected_item, "values")[2]
+        monto_actual = self.tree_pagos.item(selected_item, "values")[3]
+        ruta_actual = self.tree_pagos.item(selected_item, "values")[4]
+        nro_interno_actual = self.tree_pagos.item(selected_item, "values")[5]
+        hora_inicio_actual = self.tree_pagos.item(selected_item, "values")[6]
+        hora_fin_actual = self.tree_pagos.item(selected_item, "values")[7]
+
+        editar_window = tk.Toplevel(self.admin_root)
+        editar_window.title("Editar Movimiento")
+
+        # Entrada para Fecha
+        tk.Label(editar_window, text="Fecha:").grid(row=0, column=0, padx=10, pady=5)
+        self.fecha_var = tk.StringVar(value=fecha_actual)
+        date_entry = DateEntry(editar_window, textvariable=self.fecha_var, date_pattern='dd-mm-yyyy')
+        date_entry.grid(row=0, column=1, padx=10, pady=5)
+
+        # Entrada para Vueltas
+        tk.Label(editar_window, text="Vueltas:").grid(row=1, column=0, padx=10, pady=5)
+        entry_vueltas = tk.Entry(editar_window)
+        entry_vueltas.grid(row=1, column=1, padx=10, pady=5)
+        entry_vueltas.insert(0, vueltas_actual)
+
+        # Entrada para Ruta Asignada
+        tk.Label(editar_window, text="Ruta Asignada:").grid(row=2, column=0, padx=10, pady=5)
+        self.ruta_var = tk.StringVar(value=ruta_actual)
+        dropdown_ruta = ttk.Combobox(editar_window, textvariable=self.ruta_var, state="readonly")
+        dropdown_ruta["values"] = ["La sirena", "Los chorros", "La estrella", "La cruz", "El jordán",
+                                "El mortiñal", "Siloé", "Las palomas", "Nápoles", "Cuatro Esquinas", "Menga"]
+        dropdown_ruta.grid(row=2, column=1, padx=10, pady=5)
+
+        # Entrada para Hora de Inicio
+        tk.Label(editar_window, text="Hora de Inicio:").grid(row=3, column=0, padx=10, pady=5)
+        self.hora_inicio_var = tk.StringVar(value=hora_inicio_actual)
+        hora_inicio_picker = ttk.Combobox(editar_window, textvariable=self.hora_inicio_var, state="readonly")
+        hora_inicio_picker["values"] = [f"{h:02d}:{m:02d}" for h in range(24) for m in (0, 30)]
+        hora_inicio_picker.grid(row=3, column=1, padx=10, pady=5)
+
+        # Entrada para Hora de Fin
+        tk.Label(editar_window, text="Hora de Fin:").grid(row=4, column=0, padx=10, pady=5)
+        self.hora_fin_var = tk.StringVar(value=hora_fin_actual)
+        hora_fin_picker = ttk.Combobox(editar_window, textvariable=self.hora_fin_var, state="readonly")
+        hora_fin_picker["values"] = [f"{h:02d}:{m:02d}" for h in range(24) for m in (0, 30)]
+        hora_fin_picker.grid(row=4, column=1, padx=10, pady=5)
+
+        # Entrada para Número Interno (no editable pero mostrará la placa asociada)
+        tk.Label(editar_window, text="Número Interno:").grid(row=5, column=0, padx=10, pady=5)
+        self.nro_interno_var = tk.StringVar(value=nro_interno_actual)
+        nro_interno_dropdown = ttk.Combobox(editar_window, textvariable=self.nro_interno_var, state="readonly")
+        nro_interno_dropdown["values"] = self.obtener_numeros_internos()
+        nro_interno_dropdown.grid(row=5, column=1, padx=10, pady=5)
+        nro_interno_dropdown.bind("<<ComboboxSelected>>", self.actualizar_placa_vehiculo)
+
+        # Mostrar Placa del Vehículo (asociada al Número Interno)
+        tk.Label(editar_window, text="Placa del Vehículo:").grid(row=6, column=0, padx=10, pady=5)
+        self.placa_var = tk.StringVar(value=self.obtener_placa_por_nro_interno(nro_interno_actual))
+        entry_placa = tk.Entry(editar_window, textvariable=self.placa_var, state="readonly")
+        entry_placa.grid(row=6, column=1, padx=10, pady=5)
+
+        def guardar_cambios():
+            nueva_fecha = self.fecha_var.get()
+            nuevas_vueltas = entry_vueltas.get().strip()
+            nueva_ruta = self.ruta_var.get().strip()
+            nueva_hora_inicio = self.hora_inicio_var.get().strip()
+            nueva_hora_fin = self.hora_fin_var.get().strip()
+
+            if not (nueva_fecha and nuevas_vueltas and nueva_ruta and nueva_hora_inicio and nueva_hora_fin):
+                messagebox.showwarning("Advertencia", "Todos los campos son obligatorios.")
+                return
+
+            # Aquí se debe actualizar el movimiento en la base de datos con los nuevos valores
+            conexion = sqlite3.connect("cootransol.db")
+            cursor = conexion.cursor()
+            cursor.execute('''UPDATE Movimientos SET fecha = ?, vueltas = ?, rutaAsignada = ?, 
+                            horaInicio = ?, horaFin = ? WHERE idMovimiento = ?''',
+                        (nueva_fecha, nuevas_vueltas, nueva_ruta, nueva_hora_inicio, nueva_hora_fin, id_movimiento))
+            conexion.commit()
+            conexion.close()
+
+            messagebox.showinfo("Éxito", "Movimiento actualizado correctamente.")
+            self.cargar_movimientos()
+            editar_window.destroy()
+
+        btn_guardar = tk.Button(editar_window, text="Guardar Cambios", command=guardar_cambios)
+        btn_guardar.grid(row=7, column=0, columnspan=2, pady=10)
+
+    def actualizar_placa_vehiculo(self, event=None):
+        nro_interno = self.nro_interno_var.get()  # Obtiene el valor seleccionado
+        nueva_placa = self.obtener_placa_por_nro_interno(nro_interno)
+        self.placa_var.set(nueva_placa)
+    def eliminar_movimiento(self):
+        selected_item = self.tree_pagos.selection()
+        if not selected_item:
+            messagebox.showwarning("Advertencia", "Por favor, seleccione un movimiento para eliminar.")
+            return
+
+        id_movimiento = self.tree_pagos.item(selected_item, "values")[0]
+
+        # Confirm before deleting
+        respuesta = messagebox.askyesno("Confirmar Eliminación", f"¿Está seguro de eliminar el movimiento con ID {id_movimiento}?")
+        if respuesta:
+            # Connect to the database and delete the movement
+            conexion = sqlite3.connect("cootransol.db")
+            cursor = conexion.cursor()
+            cursor.execute("DELETE FROM Movimientos WHERE idMovimiento = ?", (id_movimiento,))
+            conexion.commit()
+            conexion.close()
+
+            messagebox.showinfo("Éxito", "Movimiento eliminado correctamente.")
+            self.cargar_movimientos()
+        # Método para cargar los movimientos desde la base de datos
     def cargar_movimientos(self):
         # Limpiar la tabla antes de cargar nuevos datos
         for row in self.tree_pagos.get_children():
             self.tree_pagos.delete(row)
 
-        # Conectar a la base de datos y cargar todos los movimientos
+        # Conectar a la base de datos y cargar todos los movimientos con la placa asociada
         conexion = sqlite3.connect("cootransol.db")
         cursor = conexion.cursor()
-        cursor.execute("SELECT idMovimiento, fecha, vueltas, montoPago, rutaAsignada, placaVehiculo, horaInicio, horaFin, pagoConfirmadoDesp, pagado FROM Movimientos")
+        cursor.execute('''
+            SELECT m.idMovimiento, m.fecha, m.vueltas, m.montoPago, m.rutaAsignada, 
+                v.placa, m.horaInicio, m.horaFin, m.pagoConfirmadoDesp, m.pagado
+            FROM Movimientos m
+            LEFT JOIN Vehiculos v ON nro_Interno = v.nro_interno
+        ''')
         movimientos = cursor.fetchall()
         conexion.close()
 
         # Insertar los datos de cada movimiento en la tabla
         for movimiento in movimientos:
             self.tree_pagos.insert("", "end", values=movimiento)
-
     # Método para marcar un pago como realizado
     def marcar_pago(self):
         selected_item = self.tree_pagos.selection()
@@ -235,7 +432,7 @@ class AdminWindow:
         # Actualizar la tabla de movimientos
         self.cargar_movimientos()
         messagebox.showinfo("Éxito", "Pago marcado como realizado.")
-   
+    
     def eliminar_conductor(self):
         # Obtener el conductor seleccionado
         selected_item = self.tree_conductores.selection()
@@ -277,9 +474,10 @@ class AdminWindow:
         entry_nombre.insert(0, nombre_actual)
 
         tk.Label(editar_window, text="Vigencia Licencia:").grid(row=2, column=0, padx=10, pady=5)
-        entry_vigencia = tk.Entry(editar_window)
+        # Usar DateEntry para seleccionar la fecha de vigencia de la licencia
+        entry_vigencia = DateEntry(editar_window, date_pattern='dd-mm-yyyy')
         entry_vigencia.grid(row=2, column=1, padx=10, pady=5)
-        entry_vigencia.insert(0, vigencia_actual)
+        entry_vigencia.set_date(vigencia_actual)  # Establecer la fecha actual
 
         def guardar_cambios():
             nuevo_id = entry_id.get().strip()
@@ -315,7 +513,7 @@ class AdminWindow:
             eliminar_vehiculo_db(placa)
             messagebox.showinfo("Éxito", "Vehículo eliminado correctamente.")
             self.cargar_vehiculos()
-  
+
     def editar_vehiculo(self):
         selected_item = self.tree_vehiculos.selection()
         if not selected_item:
@@ -356,26 +554,26 @@ class AdminWindow:
         entry_modelo.insert(0, modelo_actual)
 
         tk.Label(editar_window, text="Vigencia SOAT:").grid(row=4, column=0, padx=10, pady=5)
-        entry_soat = tk.Entry(editar_window)
+        entry_soat = DateEntry(editar_window, date_pattern='dd-mm-yyyy')
         entry_soat.grid(row=4, column=1, padx=10, pady=5)
-        entry_soat.insert(0, soat_actual)
+        entry_soat.set_date(soat_actual)  # Asume que el formato de fecha está en 'dd-mm-yyyy'
 
         tk.Label(editar_window, text="Vigencia Tarjeta:").grid(row=5, column=0, padx=10, pady=5)
-        entry_tarjeta = tk.Entry(editar_window)
+        entry_tarjeta = DateEntry(editar_window, date_pattern='dd-mm-yyyy')
         entry_tarjeta.grid(row=5, column=1, padx=10, pady=5)
-        entry_tarjeta.insert(0, tarjeta_actual)
+        entry_tarjeta.set_date(tarjeta_actual)
 
         tk.Label(editar_window, text="Vigencia Póliza:").grid(row=6, column=0, padx=10, pady=5)
-        entry_poliza = tk.Entry(editar_window)
+        entry_poliza = DateEntry(editar_window, date_pattern='dd-mm-yyyy')
         entry_poliza.grid(row=6, column=1, padx=10, pady=5)
-        entry_poliza.insert(0, poliza_actual)
+        entry_poliza.set_date(poliza_actual)
 
         tk.Label(editar_window, text="Vigencia Tecnomecánica:").grid(row=7, column=0, padx=10, pady=5)
-        entry_tecno = tk.Entry(editar_window)
+        entry_tecno = DateEntry(editar_window, date_pattern='dd-mm-yyyy')
         entry_tecno.grid(row=7, column=1, padx=10, pady=5)
-        entry_tecno.insert(0, tecno_actual)
+        entry_tecno.set_date(tecno_actual)
 
-        #Dropdown para seleccionar un conductor disponible
+        # Dropdown para seleccionar un conductor disponible
         tk.Label(editar_window, text="Asignar Conductor:").grid(row=8, column=0, padx=10, pady=5)
         self.conductor_var = tk.StringVar()
         self.dropdown_conductor = ttk.Combobox(editar_window, textvariable=self.conductor_var, state="readonly")
@@ -390,10 +588,10 @@ class AdminWindow:
             nueva_placa = entry_placa.get().strip()
             nuevo_estado = entry_estado.get().strip()
             nuevo_modelo = entry_modelo.get().strip()
-            nueva_vigencia_soat = entry_soat.get().strip()
-            nueva_vigencia_tarjeta = entry_tarjeta.get().strip()
-            nueva_vigencia_poliza = entry_poliza.get().strip()
-            nueva_vigencia_tecno = entry_tecno.get().strip()
+            nueva_vigencia_soat = entry_soat.get()  # Obtener la fecha seleccionada
+            nueva_vigencia_tarjeta = entry_tarjeta.get()  # Obtener la fecha seleccionada
+            nueva_vigencia_poliza = entry_poliza.get()  # Obtener la fecha seleccionada
+            nueva_vigencia_tecno = entry_tecno.get()  # Obtener la fecha seleccionada
             conductor_seleccionado = self.conductor_var.get()
 
             # Validar que todos los campos estén completos
@@ -427,9 +625,9 @@ class AdminWindow:
             self.cargar_vehiculos()
             editar_window.destroy()
 
-                # Botón para guardar cambios
+        # Botón para guardar cambios
         btn_guardar = tk.Button(editar_window, text="Guardar Cambios", command=guardar_cambios)
-        btn_guardar.grid(row=10, column=0, columnspan=2, pady=10)  # Cambié la fila a 10 para evitar conflictos con otros widgets
+        btn_guardar.grid(row=10, column=0, columnspan=2, pady=10)
 
     def filtrar_conductor(self):
         # Lógica para filtrar los conductores en la base de datos y mostrar resultados en la tabla
@@ -499,7 +697,9 @@ class AdminWindow:
 
         label_licencia = tk.Label(agregar_window, text="Vigencia Licencia:")
         label_licencia.grid(row=2, column=0, padx=10, pady=10)
-        entry_licencia = tk.Entry(agregar_window)
+        
+        # Usar DateEntry para seleccionar la fecha de vigencia de la licencia
+        entry_licencia = DateEntry(agregar_window, date_pattern='dd-mm-yyyy')
         entry_licencia.grid(row=2, column=1, padx=10, pady=10)
 
         def agregar_conductor_callback():
@@ -520,7 +720,7 @@ class AdminWindow:
 
         btn_guardar = tk.Button(agregar_window, text="Guardar", command=agregar_conductor_callback)
         btn_guardar.grid(row=3, column=0, columnspan=2, pady=10)
-
+   
     def asignar_conductor_vehiculo(self):
         # Crear ventana para la asignación
         asignar_window = tk.Toplevel(self.admin_root)
@@ -624,10 +824,10 @@ class AdminWindow:
         agregar_window.title("Agregar Vehículo")
 
         # Definir etiquetas y entradas para cada atributo del vehículo
-        labels = ["Número interno", "Placa", "Estado", "Modelo", "Vigencia SOAT", "Vigencia Tarjeta", "Vigencia Póliza", "Vigencia Tecnomecánica"]
+        labels = ["Número interno", "Placa", "Estado", "Modelo"]
         entries = {}
 
-        # Crear entradas dinámicas
+        # Crear entradas para los campos básicos
         for i, label_text in enumerate(labels):
             label = tk.Label(agregar_window, text=label_text + ":")
             label.grid(row=i, column=0, padx=10, pady=5)
@@ -635,19 +835,29 @@ class AdminWindow:
             entry.grid(row=i, column=1, padx=10, pady=5)
             entries[label_text] = entry
 
+        # Crear DateEntry para fechas de vigencia
+        fecha_labels = ["Vigencia SOAT", "Vigencia Tarjeta", "Vigencia Póliza", "Vigencia Tecnomecánica"]
+        date_entries = {}
+
+        for j, fecha_label in enumerate(fecha_labels):
+            label = tk.Label(agregar_window, text=fecha_label + ":")
+            label.grid(row=len(labels) + j, column=0, padx=10, pady=5)
+            date_entry = DateEntry(agregar_window, date_pattern='dd-mm-yyyy')
+            date_entry.grid(row=len(labels) + j, column=1, padx=10, pady=5)
+            date_entries[fecha_label] = date_entry
+
         # Dropdown para seleccionar el conductor disponible
         label_conductor = tk.Label(agregar_window, text="Asignar Conductor:")
-        label_conductor.grid(row=len(labels), column=0, padx=10, pady=5)
+        label_conductor.grid(row=len(labels) + len(fecha_labels), column=0, padx=10, pady=5)
 
         # Variable y dropdown para conductores disponibles
         self.conductor_var = tk.StringVar()
         self.dropdown_conductor = ttk.Combobox(agregar_window, textvariable=self.conductor_var, state="readonly")
-        self.dropdown_conductor.grid(row=len(labels), column=1, padx=10, pady=5)
+        self.dropdown_conductor.grid(row=len(labels) + len(fecha_labels), column=1, padx=10, pady=5)
 
         # Cargar conductores disponibles con formato adecuado
         conductores_disponibles = self.obtener_conductores_disponibles()
         self.dropdown_conductor["values"] = conductores_disponibles
-        #self.dropdown_conductor["values"] = [f"{conductor[0]} - {conductor[1]}" for conductor in conductores_disponibles]
 
         def agregar_vehiculo_callback():
             # Obtener los valores de entrada
@@ -658,6 +868,10 @@ class AdminWindow:
             if any(value == "" for value in datos_vehiculo.values()) or not conductor_seleccionado:
                 messagebox.showwarning("Campos Vacíos", "Completa todos los campos.")
                 return
+
+            # Obtener fechas de las entradas de calendario
+            for fecha_label, date_entry in date_entries.items():
+                datos_vehiculo[fecha_label] = date_entry.get_date().strftime('%d-%m-%Y')
 
             # Separar el ID del conductor seleccionado
             id_conductor = conductor_seleccionado.split(" - ")[0]
@@ -673,6 +887,7 @@ class AdminWindow:
             except ValueError:
                 messagebox.showerror("Error", "El Número interno debe ser un número entero.")
                 return
+
             # Llamada a la función de agregar vehículo con el conductor asignado
             agregar_vehiculo(
                 nro_interno=datos_vehiculo["Número interno"],  
@@ -694,7 +909,7 @@ class AdminWindow:
 
         # Botón para guardar el vehículo
         btn_guardar = tk.Button(agregar_window, text="Guardar", command=agregar_vehiculo_callback)
-        btn_guardar.grid(row=len(labels) + 1, column=0, columnspan=2, pady=10)
+        btn_guardar.grid(row=len(labels) + len(fecha_labels) + 1, column=0, columnspan=2, pady=10)
    
     def obtener_conductores_disponibles(self, nro_interno=None):
         try:
@@ -753,7 +968,7 @@ class DespachadorWindow:
         self.despachador = despachador
         self.despachador_root = tk.Tk()
         self.despachador_root.title("Sistema de Gestión de Transporte - COOTRANSOL")
-
+        self.despachador_root.state('zoomed')
         # Crear Notebook (pestañas)
         self.tab_control = ttk.Notebook(self.despachador_root)
 
@@ -780,23 +995,36 @@ class DespachadorWindow:
         self.despachador_root.mainloop()
 
     def setup_conductor_tab(self):
+        # Configuración del layout general
+        self.tab_conductor.columnconfigure(1, weight=1)
+        self.tab_conductor.rowconfigure(1, weight=1)
+
         # Campo de búsqueda por identificación
         label_busqueda = tk.Label(self.tab_conductor, text="Buscar por Identificación:")
         label_busqueda.grid(row=0, column=0, padx=10, pady=10, sticky="w")
         self.entry_busqueda_conductor = tk.Entry(self.tab_conductor)
-        self.entry_busqueda_conductor.grid(row=0, column=1, padx=10, pady=10)
+        self.entry_busqueda_conductor.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
 
         # Botón de búsqueda
         btn_buscar = tk.Button(self.tab_conductor, text="Buscar", command=self.buscar_conductor)
-        btn_buscar.grid(row=0, column=2, padx=10, pady=10)
+        btn_buscar.grid(row=0, column=2, padx=10, pady=10, sticky="e")
 
         # Tabla para mostrar conductores
         self.tree_conductores = ttk.Treeview(self.tab_conductor, columns=("Identificacion", "Nombre", "Licencia"), show="headings")
         self.tree_conductores.heading("Identificacion", text="Identificacion")
         self.tree_conductores.heading("Nombre", text="Nombre")
         self.tree_conductores.heading("Licencia", text="Vigencia Licencia")
-        self.tree_conductores.grid(row=1, column=0, columnspan=3, padx=10, pady=10)
+        self.tree_conductores.grid(row=1, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
 
+        # Configurar barras de desplazamiento
+        scrollbar_y = ttk.Scrollbar(self.tab_conductor, orient="vertical", command=self.tree_conductores.yview)
+        scrollbar_y.grid(row=1, column=3, sticky="ns")
+        scrollbar_x = ttk.Scrollbar(self.tab_conductor, orient="horizontal", command=self.tree_conductores.xview)
+        scrollbar_x.grid(row=2, column=0, columnspan=3, sticky="ew")
+        
+        self.tree_conductores.configure(yscroll=scrollbar_y.set, xscroll=scrollbar_x.set)
+
+        # Cargar info de los conductores ya existentes
         self.cargar_conductores()
 
     def buscar_conductor(self):
@@ -842,19 +1070,26 @@ class DespachadorWindow:
             self.tree_conductores.insert("", "end", values=conductor)
     
     def setup_vehiculo_tab(self):
+        # Configuración del layout general
+        self.tab_vehiculo.columnconfigure(1, weight=1)
+        self.tab_vehiculo.rowconfigure(1, weight=1)
+
         # Campo de búsqueda por placa
         label_busqueda = tk.Label(self.tab_vehiculo, text="Buscar por Placa:")
         label_busqueda.grid(row=0, column=0, padx=10, pady=10, sticky="w")
         
         self.entry_busqueda_vehiculo = tk.Entry(self.tab_vehiculo)
-        self.entry_busqueda_vehiculo.grid(row=0, column=1, padx=10, pady=10)
+        self.entry_busqueda_vehiculo.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+
+        # Expansión horizontal para la entrada de búsqueda
+        self.tab_vehiculo.columnconfigure(1, weight=1)
 
         # Botón de búsqueda
         btn_buscar = tk.Button(self.tab_vehiculo, text="Buscar", command=self.filtrar_vehiculo)
         btn_buscar.grid(row=0, column=2, padx=10, pady=10)
 
         # Tabla para mostrar vehículos
-        self.tree_vehiculos = ttk.Treeview(self.tab_vehiculo, columns=("Nro", "Placa", "Estado", "Modelo", "SOAT", "Tarjeta", "Póliza", "Tecno"), show="headings", height=8)
+        self.tree_vehiculos = ttk.Treeview(self.tab_vehiculo, columns=("Nro", "Placa", "Estado", "Modelo", "SOAT", "Tarjeta", "Póliza", "Tecno"), show="headings")
         
         # Configurar encabezados de la tabla con nombres más compactos
         self.tree_vehiculos.heading("Nro", text="Nro")
@@ -886,9 +1121,8 @@ class DespachadorWindow:
         
         self.tree_vehiculos.configure(yscroll=scrollbar_y.set, xscroll=scrollbar_x.set)
 
-        #Cargar info de los vehículos ya existentes
-        self.cargar_vehiculos() 
-
+        # Cargar info de los vehículos ya existentes
+        self.cargar_vehiculos()
     def cargar_vehiculos(self):
         # Limpiar la tabla antes de cargar nuevos datos
         for row in self.tree_vehiculos.get_children():
@@ -1039,37 +1273,75 @@ class DespachadorWindow:
         agregar_window = tk.Toplevel(self.despachador_root)
         agregar_window.title("Agregar Nuevo Movimiento")
 
-        tk.Label(agregar_window, text="Número Interno del Vehículo:").grid(row=0, column=0, padx=10, pady=5)
-        entry_nro_interno = tk.Entry(agregar_window)
-        entry_nro_interno.grid(row=0, column=1, padx=10, pady=5)
+        tk.Label(agregar_window, text="Número Interno:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        self.nro_interno_var = tk.StringVar()
+        dropdown_nro_interno = ttk.Combobox(agregar_window, textvariable=self.nro_interno_var)
+        dropdown_nro_interno.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
 
-        tk.Label(agregar_window, text="Fecha:").grid(row=1, column=0, padx=10, pady=5)
-        entry_fecha = tk.Entry(agregar_window)
-        entry_fecha.grid(row=1, column=1, padx=10, pady=5)
+        # Cargar números internos en la lista desplegable
+        numeros_internos = self.obtener_numeros_internos()
+        dropdown_nro_interno["values"] = numeros_internos
+        dropdown_nro_interno.bind("<<ComboboxSelected>>", self.actualizar_placa_vehiculo)
 
-        tk.Label(agregar_window, text="Vueltas:").grid(row=2, column=0, padx=10, pady=5)
+        tk.Label(agregar_window, text="Placa del Vehículo:").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+        self.placa_var = tk.StringVar()
+        entry_placa = tk.Entry(agregar_window, textvariable=self.placa_var, state="readonly")
+        entry_placa.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
+
+        tk.Label(agregar_window, text="Fecha del Movimiento:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
+        self.fecha_var = tk.StringVar()
+        date_entry = DateEntry(agregar_window, textvariable=self.fecha_var, date_pattern='dd-mm-yyyy')
+        date_entry.grid(row=2, column=1, padx=10, pady=5, sticky="w")
+
+        tk.Label(agregar_window, text="Vueltas:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
         entry_vueltas = tk.Entry(agregar_window)
-        entry_vueltas.grid(row=2, column=1, padx=10, pady=5)
+        entry_vueltas.grid(row=3, column=1, padx=10, pady=5, sticky="ew")
 
-        tk.Label(agregar_window, text="Ruta Asignada:").grid(row=3, column=0, padx=10, pady=5)
-        entry_ruta = tk.Entry(agregar_window)
-        entry_ruta.grid(row=3, column=1, padx=10, pady=5)
+        tk.Label(agregar_window, text="Ruta Asignada:").grid(row=4, column=0, padx=10, pady=5, sticky="w")
+        self.ruta_var = tk.StringVar()
+        dropdown_ruta = ttk.Combobox(agregar_window, textvariable=self.ruta_var, state="readonly")
+        dropdown_ruta["values"] = [
+            "La sirena", "Los chorros", "La estrella", "La cruz", 
+            "El jordán", "El mortiñal", "Siloé", "Las palomas", 
+            "Nápoles", "Cuatro Esquinas", "Menga"
+        ]
+        dropdown_ruta.grid(row=4, column=1, padx=10, pady=5, sticky="ew")
 
-        tk.Label(agregar_window, text="Hora de Inicio:").grid(row=4, column=0, padx=10, pady=5)
-        entry_hora_inicio = tk.Entry(agregar_window)
-        entry_hora_inicio.grid(row=4, column=1, padx=10, pady=5)
+        tk.Label(agregar_window, text="Hora de Inicio:").grid(row=5, column=0, padx=10, pady=5, sticky="w")
+        horas = [f"{h:02}" for h in range(24)]  # Lista de horas 00-23
+        minutos = [f"{m:02}" for m in range(60)]  # Lista de minutos 00-59
 
-        tk.Label(agregar_window, text="Hora de Fin:").grid(row=5, column=0, padx=10, pady=5)
-        entry_hora_fin = tk.Entry(agregar_window)
-        entry_hora_fin.grid(row=5, column=1, padx=10, pady=5)
+        self.hora_inicio_var = tk.StringVar()
+        self.minuto_inicio_var = tk.StringVar()
+
+        dropdown_hora_inicio = ttk.Combobox(agregar_window, textvariable=self.hora_inicio_var, values=horas, state="readonly", width=3)
+        dropdown_hora_inicio.grid(row=5, column=1, padx=5, pady=5, sticky="w")
+        dropdown_minuto_inicio = ttk.Combobox(agregar_window, textvariable=self.minuto_inicio_var, values=minutos, state="readonly", width=3)
+        dropdown_minuto_inicio.grid(row=5, column=2, padx=5, pady=5, sticky="w")
+
+        tk.Label(agregar_window, text="Hora de Fin:").grid(row=6, column=0, padx=10, pady=5, sticky="w")
+        self.hora_fin_var = tk.StringVar()
+        self.minuto_fin_var = tk.StringVar()
+
+        dropdown_hora_fin = ttk.Combobox(agregar_window, textvariable=self.hora_fin_var, values=horas, state="readonly", width=3)
+        dropdown_hora_fin.grid(row=6, column=1, padx=5, pady=5, sticky="w")
+        dropdown_minuto_fin = ttk.Combobox(agregar_window, textvariable=self.minuto_fin_var, values=minutos, state="readonly", width=3)
+        dropdown_minuto_fin.grid(row=6, column=2, padx=5, pady=5, sticky="w")
 
         def guardar_movimiento():
-            nro_interno = entry_nro_interno.get().strip()
-            fecha = entry_fecha.get().strip()
+            nro_interno = self.nro_interno_var.get().strip()
+            # Validación para asegurarse de que el número interno esté seleccionado
+            if not nro_interno:
+                messagebox.showwarning("Advertencia", "Debe seleccionar un número interno válido.")
+                return
+            fecha = self.fecha_var.get().strip()
             vueltas = entry_vueltas.get().strip()
-            ruta_asignada = entry_ruta.get().strip()
-            hora_inicio = entry_hora_inicio.get().strip()
-            hora_fin = entry_hora_fin.get().strip()
+            ruta_asignada = self.ruta_var.get().strip()
+            if not ruta_asignada:
+                messagebox.showwarning("Advertencia", "Debe seleccionar una ruta válida.")
+                return
+            hora_inicio = self.hora_inicio_var.get().strip()
+            hora_fin = self.hora_fin_var.get().strip()
 
             # Validar campos vacíos
             if not (nro_interno and fecha and vueltas and ruta_asignada and hora_inicio and hora_fin):
@@ -1116,8 +1388,28 @@ class DespachadorWindow:
             self.cargar_movimientos()  # Para actualizar la tabla en la interfaz
             agregar_window.destroy()
         btn_guardar = tk.Button(agregar_window, text="Guardar Movimiento", command=guardar_movimiento)
-        btn_guardar.grid(row=6, column=0, columnspan=2, pady=10)
+        btn_guardar.grid(row=7, column=0, columnspan=2, pady=10)
 
+    def obtener_numeros_internos(self):
+        conexion = sqlite3.connect("cootransol.db")
+        cursor = conexion.cursor()
+        cursor.execute("SELECT nro_interno FROM Vehiculos")
+        numeros_internos = cursor.fetchall()
+        conexion.close()
+        return [str(nro[0]) for nro in numeros_internos]
+
+    def actualizar_placa_vehiculo(self, event):
+        nro_interno = self.nro_interno_var.get()
+        if nro_interno:
+            conexion = sqlite3.connect("cootransol.db")
+            cursor = conexion.cursor()
+            cursor.execute("SELECT placa FROM Vehiculos WHERE nro_interno = ?", (nro_interno,))
+            resultado = cursor.fetchone()
+            conexion.close()
+            if resultado:
+                self.placa_var.set(resultado[0])
+            else:
+                self.placa_var.set("No encontrado")
 # Inicializar la ventana de inicio de sesión
 if __name__ == "__main__":
     root = tk.Tk()
