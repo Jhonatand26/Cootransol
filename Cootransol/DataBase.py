@@ -5,7 +5,8 @@ import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "cootransol.db")
-print("Ruta de la base de datos utilizada:", DB_PATH)
+image_path = os.path.join(BASE_DIR, "logo.jpg")  # Asegúrate de que "logo.jpg" esté en la carpeta correcta
+
 
 def conectar_db(retornar_cursor=False):
     conexion = sqlite3.connect(DB_PATH)

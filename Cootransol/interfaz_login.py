@@ -2,14 +2,12 @@ import os
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 from sistema_cootransol import Administrador, Despachador  # Importar las clases del sistema
-from DataBase import agregar_conductor, agregar_vehiculo, eliminar_vehiculo_db, eliminar_conductor_db  # Importar funciones para base de datos
+from DataBase import agregar_conductor, agregar_vehiculo, eliminar_vehiculo_db, eliminar_conductor_db, DB_PATH, image_path # Importar funciones para base de datos
 import sqlite3
 from tkcalendar import DateEntry
 from PIL import Image, ImageTk
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-image_path = os.path.join(BASE_DIR, "logo.jpg")  # Asegúrate de que "logo.jpg" esté en la carpeta correcta
-DB_PATH = os.path.join(BASE_DIR, "cootransol.db")
+
 # Ventana de inicio de sesión
 import tkinter as tk
 from tkinter import messagebox
@@ -276,9 +274,14 @@ class AdminWindow:
         cursor.execute("SELECT placa FROM Vehiculos WHERE nro_interno = ?", (nro_interno,))
         resultado = cursor.fetchone()
         conexion.close()
-        return resultado[0] if resultado else "No disponible"
+        if resultado:
+            return resultado[0]  # Devuelve la placa si se encuentra
+        else:
+            return "No disponible"  # Mensaje por defecto si no hay placa
+
 
     def editar_movimiento(self):
+
         selected_item = self.tree_pagos.selection()
         if not selected_item:
             messagebox.showwarning("Advertencia", "Por favor, seleccione un movimiento para editar.")
@@ -331,19 +334,23 @@ class AdminWindow:
         hora_fin_picker["values"] = [f"{h:02d}:{m:02d}" for h in range(24) for m in (0, 30)]
         hora_fin_picker.grid(row=4, column=1, padx=10, pady=5)
 
-        # Entrada para Número Interno (no editable pero mostrará la placa asociada)
+        # Entrada para Número Interno
         tk.Label(editar_window, text="Número Interno:").grid(row=5, column=0, padx=10, pady=5)
         self.nro_interno_var = tk.StringVar(value=nro_interno_actual)
         nro_interno_dropdown = ttk.Combobox(editar_window, textvariable=self.nro_interno_var, state="readonly")
         nro_interno_dropdown["values"] = self.obtener_numeros_internos()
         nro_interno_dropdown.grid(row=5, column=1, padx=10, pady=5)
-        nro_interno_dropdown.bind("<<ComboboxSelected>>", self.actualizar_placa_vehiculo)
 
         # Mostrar Placa del Vehículo (asociada al Número Interno)
         tk.Label(editar_window, text="Placa del Vehículo:").grid(row=6, column=0, padx=10, pady=5)
-        self.placa_var = tk.StringVar(value=self.obtener_placa_por_nro_interno(nro_interno_actual))
+        placa_obtenida = self.obtener_placa_por_nro_interno(nro_interno_actual)  # Obtener la placa
+        print(f"Número interno actual: {nro_interno_actual}, Placa obtenida: {placa_obtenida}")  # Depuración
+        self.placa_var = tk.StringVar(value=placa_obtenida)
         entry_placa = tk.Entry(editar_window, textvariable=self.placa_var, state="readonly")
         entry_placa.grid(row=6, column=1, padx=10, pady=5)
+
+        # Bind para actualizar la placa cuando se cambia el número interno seleccionado
+        nro_interno_dropdown.bind("<<ComboboxSelected>>", lambda e: self.actualizar_placa_vehiculo_edicion())
 
         def guardar_cambios():
             nueva_fecha = self.fecha_var.get()
@@ -351,17 +358,18 @@ class AdminWindow:
             nueva_ruta = self.ruta_var.get().strip()
             nueva_hora_inicio = self.hora_inicio_var.get().strip()
             nueva_hora_fin = self.hora_fin_var.get().strip()
+            nuevo_nro_interno = self.nro_interno_var.get().strip()
 
             if not (nueva_fecha and nuevas_vueltas and nueva_ruta and nueva_hora_inicio and nueva_hora_fin):
                 messagebox.showwarning("Advertencia", "Todos los campos son obligatorios.")
                 return
 
-            # Aquí se debe actualizar el movimiento en la base de datos con los nuevos valores
+            # Actualiza el movimiento en la base de datos
             conexion = sqlite3.connect(DB_PATH)
             cursor = conexion.cursor()
             cursor.execute('''UPDATE Movimientos SET fecha = ?, vueltas = ?, rutaAsignada = ?, 
-                            horaInicio = ?, horaFin = ? WHERE idMovimiento = ?''',
-                        (nueva_fecha, nuevas_vueltas, nueva_ruta, nueva_hora_inicio, nueva_hora_fin, id_movimiento))
+                            horaInicio = ?, horaFin = ?, numeroInternoVehiculo = ? WHERE idMovimiento = ?''',
+                        (nueva_fecha, nuevas_vueltas, nueva_ruta, nueva_hora_inicio, nueva_hora_fin, nuevo_nro_interno, id_movimiento))
             conexion.commit()
             conexion.close()
 
@@ -372,10 +380,12 @@ class AdminWindow:
         btn_guardar = tk.Button(editar_window, text="Guardar Cambios", command=guardar_cambios)
         btn_guardar.grid(row=7, column=0, columnspan=2, pady=10)
 
-    def actualizar_placa_vehiculo(self, event=None):
-        nro_interno = self.nro_interno_var.get()  # Obtiene el valor seleccionado
-        nueva_placa = self.obtener_placa_por_nro_interno(nro_interno)
+    def actualizar_placa_vehiculo_edicion(self):
+        """Actualiza la placa cuando se cambia el número interno del vehículo"""
+        nuevo_nro_interno = self.nro_interno_var.get()
+        nueva_placa = self.obtener_placa_por_nro_interno(nuevo_nro_interno)
         self.placa_var.set(nueva_placa)
+        
     def eliminar_movimiento(self):
         selected_item = self.tree_pagos.selection()
         if not selected_item:
@@ -409,7 +419,7 @@ class AdminWindow:
             SELECT m.idMovimiento, m.fecha, m.vueltas, m.montoPago, m.rutaAsignada, 
                 v.placa, m.horaInicio, m.horaFin, m.pagoConfirmadoDesp, m.pagado
             FROM Movimientos m
-            LEFT JOIN Vehiculos v ON nro_Interno = v.nro_interno
+            LEFT JOIN Vehiculos v ON m.numeroInternoVehiculo = v.nro_interno
         ''')
         movimientos = cursor.fetchall()
         conexion.close()
@@ -421,7 +431,7 @@ class AdminWindow:
     def marcar_pago(self):
         selected_item = self.tree_pagos.selection()
         if not selected_item:
-            messagebox.showwarning("Advertencia", "Por favor, seleccione un movimiento para marcar como pagado.")
+            messageboxm.montoPago, m.rutaAsi.showwarning("Advertencia", "Por favor, seleccione un movimiento para marcar como pagado.")
             return
 
         id_movimiento = self.tree_pagos.item(selected_item, "values")[0]
