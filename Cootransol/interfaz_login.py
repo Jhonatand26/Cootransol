@@ -928,7 +928,7 @@ class AdminWindow:
     def obtener_conductores_disponibles(self, nro_interno=None):
         try:
             # Confirma la ruta de la base de datos
-            db_path = "D:/Asus/Escritorio/Cootransol/Cootransol/cootransol.db"
+            db_path = DB_PATH
             print(f"Usando la base de datos en: {db_path}")
 
             conexion = sqlite3.connect(db_path)
